@@ -46,7 +46,7 @@ const DeliveryList = () => {
             <FontAwesomeIcon icon={faPlus} /> Ajouter Livraison
           </Link>
           <button className="btn btn-primary" onClick={handleRecalculateStock}>
-            <FontAwesomeIcon icon={faSync} /> Recalculate Stock
+            <FontAwesomeIcon icon={faSync} /> Calculer Stock
           </button>
         </div>
       </div>
