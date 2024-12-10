@@ -1,0 +1,18 @@
+{
+    "name": "pelletsfun",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "start": "concurrently \"npm run server --prefix backend\" \"npm start --prefix client\"",
+        "server": "npm run server --prefix backend",
+        "client": "npm start --prefix client",
+        "dev": "concurrently \"npm run server --prefix backend\" \"npm start --prefix client\""
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2",
+        "gh-pages": "^6.2.0"
+    },
+    "dependencies": {
+        "dotenv": "^16.4.5"
+    }
+}
