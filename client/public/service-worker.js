@@ -4,7 +4,8 @@ const urlsToCache = [
   '/index.html',
   '/manifest.json',
   '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png'
+  '/icons/icon-512x512.png',
+  // Ajoutez d'autres ressources nécessaires ici
 ];
 
 self.addEventListener('install', event => {
@@ -12,6 +13,9 @@ self.addEventListener('install', event => {
     caches.open(CACHE_NAME)
       .then(cache => {
         return cache.addAll(urlsToCache);
+      })
+      .catch(error => {
+        console.error('Failed to cache resources during install:', error);
       })
   );
 });
@@ -24,6 +28,9 @@ self.addEventListener('fetch', event => {
           return response;
         }
         return fetch(event.request);
+      })
+      .catch(error => {
+        console.error('Failed to fetch resource:', error);
       })
   );
 });
