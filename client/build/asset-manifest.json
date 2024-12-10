@@ -1,13 +1,13 @@
 {
   "files": {
     "main.css": "/pelletsFun/static/css/main.3a0bfe64.css",
-    "main.js": "/pelletsFun/static/js/main.ecb3f8c8.js",
+    "main.js": "/pelletsFun/static/js/main.d75ac154.js",
     "index.html": "/pelletsFun/index.html",
     "main.3a0bfe64.css.map": "/pelletsFun/static/css/main.3a0bfe64.css.map",
-    "main.ecb3f8c8.js.map": "/pelletsFun/static/js/main.ecb3f8c8.js.map"
+    "main.d75ac154.js.map": "/pelletsFun/static/js/main.d75ac154.js.map"
   },
   "entrypoints": [
     "static/css/main.3a0bfe64.css",
-    "static/js/main.ecb3f8c8.js"
+    "static/js/main.d75ac154.js"
   ]
 }

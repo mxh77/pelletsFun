@@ -12,7 +12,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 
 function App() {
   return (
-    <Router>
+    <Router basename="/pelletsFun">
       <div className="App container">
         <header className="App-header">
           <h1 className="my-4">Pellets Tracker</h1>
