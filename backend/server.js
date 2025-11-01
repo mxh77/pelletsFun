@@ -12,7 +12,7 @@ connectDB();
 
 // Middleware
 app.use(cors({
-  origin: 'https://mxh77.github.io', // Remplacez par l'URL de votre site de production
+  origin: 'https://mxh77.github.io', // Remplacez par l'URL de votre site de production sans le sous-répertoire
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));

@@ -1,0 +1,55 @@
+#!/bin/bash
+set -e
+
+echo "🔄 Mise à jour de PelletsFun..."
+echo "================================"
+
+# Couleurs pour les messages
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+cd /home/pelletsfun/pelletsFun
+
+# Pull des dernières modifications
+echo -e "${BLUE}📥 Git pull...${NC}"
+git pull origin master || {
+    echo -e "${RED}❌ Erreur lors du git pull${NC}"
+    exit 1
+}
+
+# Backend
+echo -e "${BLUE}🔧 Mise à jour du backend...${NC}"
+cd backend
+npm install --production || {
+    echo -e "${RED}❌ Erreur lors de l'installation des dépendances backend${NC}"
+    exit 1
+}
+
+# Frontend
+echo -e "${BLUE}🎨 Rebuild du frontend...${NC}"
+cd ../client
+npm install || {
+    echo -e "${RED}❌ Erreur lors de l'installation des dépendances frontend${NC}"
+    exit 1
+}
+
+npm run build || {
+    echo -e "${RED}❌ Erreur lors du build du frontend${NC}"
+    exit 1
+}
+
+# Redémarrage PM2
+echo -e "${BLUE}🔄 Redémarrage PM2...${NC}"
+pm2 restart pelletsfun-backend || {
+    echo -e "${RED}❌ Erreur lors du redémarrage PM2${NC}"
+    exit 1
+}
+
+echo ""
+echo -e "${GREEN}✅ Mise à jour terminée avec succès !${NC}"
+echo "================================"
+pm2 status
+echo ""
+echo -e "${GREEN}🌐 Site accessible sur : https://pelletsfun.harmonixe.fr${NC}"
