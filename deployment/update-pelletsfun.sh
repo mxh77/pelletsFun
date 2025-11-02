@@ -40,6 +40,12 @@ npm run build || {
     exit 1
 }
 
+# Copie des fichiers buildés vers le répertoire web
+echo -e "${BLUE}📋 Copie des fichiers vers /var/www/pelletsfun...${NC}"
+sudo rm -rf /var/www/pelletsfun/*
+sudo cp -r build/* /var/www/pelletsfun/
+sudo chown -R www-data:www-data /var/www/pelletsfun
+
 # Redémarrage PM2
 echo -e "${BLUE}🔄 Redémarrage PM2...${NC}"
 pm2 restart pelletsfun-backend || {
