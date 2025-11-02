@@ -25,13 +25,19 @@ exports.getSeasonById = async (req, res) => {
 
 // Créer une nouvelle saison
 exports.createSeason = async (req, res) => {
-  const season = new Season({
+  const seasonData = {
     name: req.body.name,
     startDate: req.body.startDate,
-    endDate: req.body.endDate,
     isActive: req.body.isActive || false,
     notes: req.body.notes || ''
-  });
+  };
+
+  // Ajouter endDate seulement si elle est fournie
+  if (req.body.endDate) {
+    seasonData.endDate = req.body.endDate;
+  }
+
+  const season = new Season(seasonData);
 
   try {
     // Si cette saison est active, désactiver les autres
@@ -113,10 +119,13 @@ exports.getSeasonStats = async (req, res) => {
     const seasons = await Season.find().sort({ startDate: -1 });
     
     const seasonsWithStats = await Promise.all(seasons.map(async (season) => {
+      // Utiliser la date du jour si la saison est active et n'a pas de date de fin
+      const endDate = season.endDate || (season.isActive ? new Date() : season.startDate);
+      
       const recharges = await Recharge.find({
         date: {
           $gte: season.startDate,
-          $lte: season.endDate
+          $lte: endDate
         }
       });
 
@@ -124,7 +133,7 @@ exports.getSeasonStats = async (req, res) => {
       const totalAmount = recharges.reduce((sum, r) => sum + r.totalAmount, 0);
       
       // Calculer la durée en jours
-      const durationMs = new Date(season.endDate) - new Date(season.startDate);
+      const durationMs = endDate - new Date(season.startDate);
       const durationDays = Math.ceil(durationMs / (1000 * 60 * 60 * 24));
       
       return {

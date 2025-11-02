@@ -11,7 +11,7 @@ const seasonSchema = new mongoose.Schema({
   },
   endDate: {
     type: Date,
-    required: true
+    required: false
   },
   isActive: {
     type: Boolean,

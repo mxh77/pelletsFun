@@ -172,15 +172,45 @@ const SeasonManager = () => {
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>Date d'arrêt</Form.Label>
-                <Form.Control
-                  type="date"
-                  name="endDate"
-                  value={formData.endDate}
+                <Form.Check
+                  type="checkbox"
+                  name="isActive"
+                  label="Saison active (en cours)"
+                  checked={formData.isActive}
                   onChange={handleInputChange}
-                  required
                 />
+                <Form.Text className="text-muted">
+                  Si la saison est active, la date de fin est optionnelle
+                </Form.Text>
               </Form.Group>
+
+              {!formData.isActive && (
+                <Form.Group className="mb-3">
+                  <Form.Label>Date d'arrêt</Form.Label>
+                  <Form.Control
+                    type="date"
+                    name="endDate"
+                    value={formData.endDate}
+                    onChange={handleInputChange}
+                    required={!formData.isActive}
+                  />
+                </Form.Group>
+              )}
+
+              {formData.isActive && (
+                <Form.Group className="mb-3">
+                  <Form.Label>Date d'arrêt prévue (optionnelle)</Form.Label>
+                  <Form.Control
+                    type="date"
+                    name="endDate"
+                    value={formData.endDate}
+                    onChange={handleInputChange}
+                  />
+                  <Form.Text className="text-muted">
+                    Vous pourrez la renseigner plus tard
+                  </Form.Text>
+                </Form.Group>
+              )}
 
               <Form.Group className="mb-3">
                 <Form.Label>Notes</Form.Label>
@@ -191,16 +221,6 @@ const SeasonManager = () => {
                   onChange={handleInputChange}
                   rows={2}
                   placeholder="Notes optionnelles..."
-                />
-              </Form.Group>
-
-              <Form.Group className="mb-3">
-                <Form.Check
-                  type="checkbox"
-                  name="isActive"
-                  label="Saison active (en cours)"
-                  checked={formData.isActive}
-                  onChange={handleInputChange}
                 />
               </Form.Group>
 
@@ -251,7 +271,7 @@ const SeasonManager = () => {
                     </div>
                     <div className="small">
                       <FontAwesomeIcon icon={faStop} className="text-danger me-1" />
-                      {formatDate(season.endDate)}
+                      {season.endDate ? formatDate(season.endDate) : 'En cours...'}
                     </div>
                   </td>
                   <td>{season.stats?.durationDays} jours</td>
