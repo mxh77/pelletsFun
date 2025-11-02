@@ -21,6 +21,7 @@ app.use(bodyParser.json());
 // Routes
 app.use('/api/deliveries', require('./routes/deliveries'));
 app.use('/api/recharges', require('./routes/recharges'));
+app.use('/api/seasons', require('./routes/seasons'));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

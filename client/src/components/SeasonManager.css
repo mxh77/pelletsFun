@@ -1,0 +1,45 @@
+.season-manager {
+  padding: 20px 0;
+}
+
+.form-card {
+  border-radius: 15px;
+  border: none;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.form-card .card-body {
+  padding: 2rem;
+}
+
+.table {
+  margin-bottom: 0;
+}
+
+.table thead {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.table thead th {
+  border: none;
+  font-weight: 600;
+  padding: 1rem;
+}
+
+.table tbody tr {
+  transition: all 0.3s;
+}
+
+.table tbody tr:hover {
+  background: rgba(102, 126, 234, 0.05);
+}
+
+.table td {
+  vertical-align: middle;
+  padding: 1rem;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}

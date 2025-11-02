@@ -10,6 +10,7 @@ import EditDeliveryForm from './components/EditDeliveryForm';
 import RechargeForm from './components/RechargeForm';
 import RechargeList from './components/RechargeList';
 import EditRechargeForm from './components/EditRechargeForm';
+import SeasonManager from './components/SeasonManager';
 import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
@@ -66,6 +67,9 @@ const TabsComponent = () => (
       </Tab>
       <Tab eventKey="recharges" title="🔥 Chargements">
         <RechargeList />
+      </Tab>
+      <Tab eventKey="seasons" title="❄️ Saisons">
+        <SeasonManager />
       </Tab>
     </Tabs>
   </div>
