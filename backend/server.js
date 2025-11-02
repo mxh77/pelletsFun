@@ -19,8 +19,8 @@ app.use(cors({
 app.use(bodyParser.json());
 
 // Routes
-app.use('/pelletsfun/deliveries', require('./routes/deliveries'));
-app.use('/pelletsfun/recharges', require('./routes/recharges'));
+app.use('/api/deliveries', require('./routes/deliveries'));
+app.use('/api/recharges', require('./routes/recharges'));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
