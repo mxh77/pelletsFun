@@ -1,6 +1,9 @@
 import React from 'react';
 import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
-import { Tabs, Tab } from 'react-bootstrap';
+import { Tabs, Tab, Container, Navbar, Nav } from 'react-bootstrap';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faFire, faHome } from '@fortawesome/free-solid-svg-icons';
+import Dashboard from './components/Dashboard';
 import DeliveryForm from './components/DeliveryForm';
 import DeliveryList from './components/DeliveryList';
 import EditDeliveryForm from './components/EditDeliveryForm';
@@ -13,34 +16,59 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 function App() {
   return (
     <Router basename="/">
-      <div className="App container">
-        <header className="App-header">
-          <h1 className="my-4">Pellets Tracker</h1>
-          <nav>
-            <Link to="/" className="btn btn-primary mr-2">Accueil</Link>
-          </nav>
-        </header>
-        <Routes>
-          <Route path="/" element={<TabsComponent />} />
-          <Route path="/add-delivery" element={<DeliveryForm />} />
-          <Route path="/edit-delivery/:id" element={<EditDeliveryForm />} />
-          <Route path="/add-recharge" element={<RechargeForm />} />
-          <Route path="/edit-recharge/:id" element={<EditRechargeForm />} />
-        </Routes>
+      <div className="App">
+        <Navbar bg="dark" variant="dark" expand="lg" className="navbar-custom">
+          <Container>
+            <Navbar.Brand href="/">
+              <FontAwesomeIcon icon={faFire} className="me-2" />
+              <span className="brand-text">Pellets Tracker</span>
+            </Navbar.Brand>
+            <Navbar.Toggle aria-controls="basic-navbar-nav" />
+            <Navbar.Collapse id="basic-navbar-nav">
+              <Nav className="ms-auto">
+                <Link to="/" className="nav-link">
+                  <FontAwesomeIcon icon={faHome} className="me-1" />
+                  Accueil
+                </Link>
+              </Nav>
+            </Navbar.Collapse>
+          </Container>
+        </Navbar>
+
+        <Container className="main-content">
+          <Routes>
+            <Route path="/" element={<TabsComponent />} />
+            <Route path="/add-delivery" element={<DeliveryForm />} />
+            <Route path="/edit-delivery/:id" element={<EditDeliveryForm />} />
+            <Route path="/add-recharge" element={<RechargeForm />} />
+            <Route path="/edit-recharge/:id" element={<EditRechargeForm />} />
+          </Routes>
+        </Container>
+
+        <footer className="footer mt-5">
+          <Container>
+            <p className="text-center text-muted mb-0">
+              © 2025 Pellets Tracker - Gestion de stock de pellets
+            </p>
+          </Container>
+        </footer>
       </div>
     </Router>
   );
 }
 
 const TabsComponent = () => (
-  <Tabs defaultActiveKey="deliveries" id="uncontrolled-tab-example" className="mb-3">
-    <Tab eventKey="deliveries" title="Livraisons">
-      <DeliveryList />
-    </Tab>
-    <Tab eventKey="recharges" title="Chargements">
-      <RechargeList />
-    </Tab>
-  </Tabs>
+  <div>
+    <Dashboard />
+    <Tabs defaultActiveKey="deliveries" id="main-tabs" className="mb-3 custom-tabs mt-5">
+      <Tab eventKey="deliveries" title="📦 Livraisons">
+        <DeliveryList />
+      </Tab>
+      <Tab eventKey="recharges" title="🔥 Chargements">
+        <RechargeList />
+      </Tab>
+    </Tabs>
+  </div>
 );
 
 export default App;
