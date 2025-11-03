@@ -10,8 +10,13 @@ const DeliveryList = () => {
 
   useEffect(() => {
     const fetchDeliveries = async () => {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/deliveries`);
-      setDeliveries(response.data);
+      try {
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/deliveries`);
+        setDeliveries(Array.isArray(response.data) ? response.data : []);
+      } catch (error) {
+        console.error('Erreur lors du chargement des livraisons:', error);
+        setDeliveries([]);
+      }
     };
     fetchDeliveries();
   }, []);

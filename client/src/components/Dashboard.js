@@ -36,8 +36,8 @@ const Dashboard = () => {
           axios.get(`${process.env.REACT_APP_API_URL}/recharges`)
         ]);
 
-        const deliveries = deliveriesRes.data;
-        const recharges = rechargesRes.data;
+        const deliveries = Array.isArray(deliveriesRes.data) ? deliveriesRes.data : [];
+        const recharges = Array.isArray(rechargesRes.data) ? rechargesRes.data : [];
 
         // Calculs
         const totalDeliveries = deliveries.reduce((sum, d) => sum + d.quantity, 0);
