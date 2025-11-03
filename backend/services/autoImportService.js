@@ -357,12 +357,6 @@ class AutoImportService {
         .on('data', (data) => {
           lineCount++;
           
-          // Debug: afficher les clés disponibles pour la première ligne
-          if (lineCount === 1) {
-            console.log('🔍 Clés disponibles:', Object.keys(data));
-            console.log('🔍 Première ligne:', data);
-          }
-          
           try {
             // La colonne s'appelle 'Datum ' avec un espace à la fin
             const datumValue = data['Datum '] || data.Datum;
@@ -370,9 +364,6 @@ class AutoImportService {
             
             // Vérifier que les composants de la date existent
             if (!day || !month || !year) {
-              if (lineCount <= 5) { // Ne pas spammer les logs
-                console.log(`❌ Date invalide ligne ${lineCount}: ${datumValue}`);
-              }
               return;
             }
             
