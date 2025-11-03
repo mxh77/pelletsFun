@@ -4,7 +4,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 
 //Le fichier .env est placé dans le dossier backend et contient la variable d'environnement MONGODB_URI.
-require ('dotenv').config({path: './backend/.env'});
+require ('dotenv').config({path: './.env'});
 const app = express();
 
 // Connect to database
@@ -12,7 +12,7 @@ connectDB();
 
 // Middleware
 app.use(cors({
-  origin: ['https://mxh77.github.io', 'https://pelletsfun.harmonixe.fr'],
+  origin: ['http://localhost:8080', 'https://mxh77.github.io', 'https://pelletsfun.harmonixe.fr'],
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));

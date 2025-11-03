@@ -519,11 +519,11 @@ exports.handleGmailAuthCallback = async (req, res) => {
     // Réinitialiser le service avec le nouveau token
     await autoImportService.initializeGmail();
     
-    // Rediriger vers l'interface
-    res.redirect('/?gmail-auth=success');
+    // Rediriger vers l'interface frontend
+    res.redirect('http://localhost:8080/?gmail-auth=success');
   } catch (error) {
     console.error('Erreur callback Gmail:', error);
-    res.redirect('/?gmail-auth=error');
+    res.redirect('http://localhost:8080/?gmail-auth=error');
   }
 };
 

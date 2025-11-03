@@ -85,7 +85,7 @@ class GmailService {
     ];
 
     return this.auth.generateAuthUrl({
-      access_type: 'offline',
+      access_type: 'online',
       scope: SCOPES,
     });
   }
