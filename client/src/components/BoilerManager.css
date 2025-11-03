@@ -606,3 +606,164 @@ button:disabled {
   color: #c0392b;
   font-weight: 600;
 }
+
+/* Sélection de fichiers multiples */
+.selected-files-list {
+  background: #f8f9fa;
+  border: 2px dashed #dee2e6;
+  border-radius: 8px;
+  padding: 15px;
+  margin: 15px 0;
+  max-width: 400px;
+}
+
+.selected-files-list h5 {
+  color: #495057;
+  margin: 0 0 10px 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.selected-files-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.selected-file {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  margin-bottom: 5px;
+  background: white;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.selected-file:hover {
+  background: #f1f3f4;
+  border-color: #dee2e6;
+}
+
+.file-name {
+  color: #495057;
+  font-weight: 500;
+  font-size: 0.9rem;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-remove-file {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.8rem;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+  padding: 2px;
+  margin-left: 10px;
+}
+
+.btn-remove-file:hover {
+  opacity: 1;
+}
+
+/* Détails des imports multiples */
+.import-details {
+  margin-top: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 15px;
+}
+
+.import-details h5 {
+  color: #495057;
+  margin: 0 0 10px 0;
+  font-size: 1rem;
+}
+
+.import-details ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.import-detail {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.import-detail:last-child {
+  border-bottom: none;
+}
+
+.detail-icon {
+  margin-right: 10px;
+  font-size: 1rem;
+}
+
+.detail-filename {
+  font-weight: 500;
+  color: #495057;
+  margin-right: 10px;
+  flex: 1;
+}
+
+.detail-info {
+  color: #28a745;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.detail-error {
+  color: #dc3545;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.import-detail.success .detail-filename {
+  color: #28a745;
+}
+
+.import-detail.error .detail-filename {
+  color: #dc3545;
+}
+
+/* Upload section améliorée */
+.upload-section {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 15px;
+}
+
+.file-input-label {
+  min-width: auto;
+  width: 100%;
+  max-width: 400px;
+}
+
+/* Responsive pour sélection multiple */
+@media (max-width: 768px) {
+  .selected-files-list {
+    max-width: none;
+  }
+  
+  .file-name {
+    font-size: 0.8rem;
+  }
+  
+  .upload-section {
+    align-items: center;
+  }
+  
+  .file-input-label {
+    max-width: none;
+    width: 100%;
+  }
+}

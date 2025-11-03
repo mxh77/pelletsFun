@@ -9,7 +9,7 @@ const BoilerManager = () => {
   const [importResult, setImportResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [autoImportStatus, setAutoImportStatus] = useState(null);
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
   const [dateRange, setDateRange] = useState({
     startDate: '',
     endDate: ''
@@ -75,26 +75,59 @@ const BoilerManager = () => {
   };
 
   const handleFileUpload = async () => {
-    if (!selectedFile) return;
+    if (selectedFiles.length === 0) return;
 
     setLoading(true);
+    const results = [];
+    
     try {
-      const formData = new FormData();
-      formData.append('csvFile', selectedFile);
+      // Traiter les fichiers un par un pour éviter les surcharges serveur
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        
+        try {
+          const formData = new FormData();
+          formData.append('csvFile', file);
 
-      const response = await axios.post(`${API_URL}/api/boiler/upload`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
+          const response = await axios.post(`${API_URL}/api/boiler/upload`, formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          });
+
+          results.push({
+            filename: file.name,
+            success: true,
+            data: response.data
+          });
+        } catch (error) {
+          results.push({
+            filename: file.name,
+            success: false,
+            error: error.response?.data?.error || error.message
+          });
         }
+      }
+
+      // Afficher un résumé des imports
+      const successCount = results.filter(r => r.success).length;
+      const totalEntries = results
+        .filter(r => r.success)
+        .reduce((total, r) => total + (r.data.validEntries || 0), 0);
+
+      setImportResult({
+        success: true,
+        message: `${successCount}/${selectedFiles.length} fichiers importés avec succès`,
+        totalEntries: totalEntries,
+        details: results
       });
 
-      setImportResult(response.data);
-      setSelectedFile(null);
+      setSelectedFiles([]);
       await loadStats(); // Recharger les stats
     } catch (error) {
-      console.error('Erreur upload:', error);
+      console.error('Erreur upload multiple:', error);
       setImportResult({ 
-        error: error.response?.data?.error || 'Erreur lors de l\'upload' 
+        error: 'Erreur lors de l\'upload multiple'
       });
     }
     setLoading(false);
@@ -194,20 +227,45 @@ const BoilerManager = () => {
             <input
               type="file"
               accept=".csv"
-              onChange={(e) => setSelectedFile(e.target.files[0])}
+              multiple
+              onChange={(e) => setSelectedFiles(Array.from(e.target.files))}
               className="file-input"
               id="csv-upload"
             />
             <label htmlFor="csv-upload" className="file-input-label">
-              {selectedFile ? selectedFile.name : 'Choisir un fichier CSV...'}
+              {selectedFiles.length > 0 
+                ? `${selectedFiles.length} fichier${selectedFiles.length > 1 ? 's' : ''} sélectionné${selectedFiles.length > 1 ? 's' : ''}` 
+                : 'Choisir des fichiers CSV...'
+              }
             </label>
           </div>
+          
+          {selectedFiles.length > 0 && (
+            <div className="selected-files-list">
+              <h5>📋 Fichiers sélectionnés :</h5>
+              <ul>
+                {selectedFiles.map((file, index) => (
+                  <li key={index} className="selected-file">
+                    <span className="file-name">{file.name}</span>
+                    <button 
+                      onClick={() => setSelectedFiles(selectedFiles.filter((_, i) => i !== index))}
+                      className="btn-remove-file"
+                      title="Supprimer ce fichier"
+                    >
+                      ❌
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
           <button 
             onClick={handleFileUpload}
-            disabled={loading || !selectedFile}
+            disabled={loading || selectedFiles.length === 0}
             className="btn-upload"
           >
-            📤 Uploader et Importer
+            📤 Uploader et Importer {selectedFiles.length > 0 ? `(${selectedFiles.length} fichiers)` : ''}
           </button>
         </div>
 
@@ -291,8 +349,37 @@ const BoilerManager = () => {
             ) : (
               <div>
                 <p>✅ {importResult.message}</p>
-                <p>Lignes traitées: {importResult.linesProcessed}</p>
-                <p>Entrées valides: {importResult.validEntries}</p>
+                {importResult.totalEntries && (
+                  <p>Total entrées importées: {importResult.totalEntries}</p>
+                )}
+                {importResult.linesProcessed && (
+                  <p>Lignes traitées: {importResult.linesProcessed}</p>
+                )}
+                {importResult.validEntries && (
+                  <p>Entrées valides: {importResult.validEntries}</p>
+                )}
+                
+                {/* Détails des imports multiples */}
+                {importResult.details && importResult.details.length > 1 && (
+                  <div className="import-details">
+                    <h5>📋 Détails par fichier :</h5>
+                    <ul>
+                      {importResult.details.map((detail, index) => (
+                        <li key={index} className={`import-detail ${detail.success ? 'success' : 'error'}`}>
+                          <span className="detail-icon">{detail.success ? '✅' : '❌'}</span>
+                          <span className="detail-filename">{detail.filename}</span>
+                          {detail.success ? (
+                            <span className="detail-info">
+                              - {detail.data.validEntries} entrées
+                            </span>
+                          ) : (
+                            <span className="detail-error">- {detail.error}</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             )}
           </div>
