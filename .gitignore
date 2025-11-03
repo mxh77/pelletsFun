@@ -6,3 +6,6 @@ backend/config/gmail-credentials.json
 backend/config/gmail-token.json
 backend/config/*.json
 !backend/config/*.example.json
+
+# Scripts de production avec secrets
+setup-gmail-production.sh

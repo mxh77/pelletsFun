@@ -83,28 +83,30 @@ class AutoImportService {
     try {
       console.log('📧 Récupération des emails Okofen depuis Gmail...');
       
+      // Lier le contexte pour éviter la perte de 'this'
+      const autoImportService = this;
       const processCallback = async (filePath, metadata) => {
         try {
           console.log(`🔄 Traitement automatique: ${path.basename(filePath)}`);
-          const result = await this.processCSVFile(filePath);
+          const result = await autoImportService.processCSVFile(filePath);
           
           if (result.success) {
             console.log(`✅ Import réussi: ${result.validEntries} entrées`);
             
             // Archiver le fichier traité
-            if (this.config.archiveProcessedFiles) {
-              await this.archiveFile(filePath);
+            if (autoImportService.config.archiveProcessedFiles) {
+              await autoImportService.archiveFile(filePath);
             }
             
-            this.stats.filesProcessed++;
-            this.stats.totalImported += result.validEntries;
-            this.stats.lastProcessed = new Date();
+            autoImportService.stats.filesProcessed++;
+            autoImportService.stats.totalImported += result.validEntries;
+            autoImportService.stats.lastProcessed = new Date();
           }
           
           return result;
         } catch (error) {
           console.error(`❌ Erreur traitement ${filePath}:`, error);
-          this.stats.errors.push({
+          autoImportService.stats.errors.push({
             file: path.basename(filePath),
             error: error.message,
             timestamp: new Date()
