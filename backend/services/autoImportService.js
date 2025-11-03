@@ -364,13 +364,14 @@ class AutoImportService {
           }
           
           try {
-            const [day, month, year] = data.Datum?.split('.') || [];
+            // La colonne s'appelle 'Datum ' avec un espace à la fin
+            const datumValue = data['Datum '] || data.Datum;
+            const [day, month, year] = datumValue?.split('.') || [];
             
             // Vérifier que les composants de la date existent
             if (!day || !month || !year) {
               if (lineCount <= 5) { // Ne pas spammer les logs
-                console.log(`❌ Date invalide ligne ${lineCount}: ${data.Datum}`);
-                console.log('🔍 Données disponibles:', Object.keys(data));
+                console.log(`❌ Date invalide ligne ${lineCount}: ${datumValue}`);
               }
               return;
             }
@@ -382,19 +383,19 @@ class AutoImportService {
 
             const boilerEntry = {
               date: date,
-              time: data.Zeit?.trim() || '',
-              outsideTemp: parseFloat(data['AT [°C]']?.replace(',', '.')) || 0,
-              outsideTempActive: parseFloat(data['ATakt [°C]']?.replace(',', '.')) || 0,
-              heatingFlowTemp: parseFloat(data['HK1 VL Ist[°C]']?.replace(',', '.')) || 0,
-              heatingFlowTempTarget: parseFloat(data['HK1 VL Soll[°C]']?.replace(',', '.')) || 0,
-              boilerTemp: parseFloat(data['PE1 KT[°C]']?.replace(',', '.')) || 0,
-              boilerTempTarget: parseFloat(data['PE1 KT_SOLL[°C]']?.replace(',', '.')) || 0,
-              modulation: parseFloat(data['PE1 Modulation[%]']?.replace(',', '.')) || 0,
-              fanSpeed: parseFloat(data['PE1 Luefterdrehzahl[%]']?.replace(',', '.')) || 0,
-              runtime: parseFloat(data['PE1 Runtime[h]']?.replace(',', '.')) || 0,
-              status: parseInt(data['PE1 Status']) || 0,
-              hotWaterInTemp: parseFloat(data['WW1 EinT Ist[°C]']?.replace(',', '.')) || 0,
-              hotWaterOutTemp: parseFloat(data['WW1 AusT Ist[°C]']?.replace(',', '.')) || 0,
+              time: (data['Zeit '] || data.Zeit)?.trim() || '',
+              outsideTemp: parseFloat((data['AT [°C]'] || data['AT [°C] '])?.replace(',', '.')) || 0,
+              outsideTempActive: parseFloat((data['ATakt [°C]'] || data['ATakt [°C] '])?.replace(',', '.')) || 0,
+              heatingFlowTemp: parseFloat((data['HK1 VL Ist[°C]'] || data['HK1 VL Ist[°C] '])?.replace(',', '.')) || 0,
+              heatingFlowTempTarget: parseFloat((data['HK1 VL Soll[°C]'] || data['HK1 VL Soll[°C] '])?.replace(',', '.')) || 0,
+              boilerTemp: parseFloat((data['PE1 KT[°C]'] || data['PE1 KT[°C] '])?.replace(',', '.')) || 0,
+              boilerTempTarget: parseFloat((data['PE1 KT_SOLL[°C]'] || data['PE1 KT_SOLL[°C] '])?.replace(',', '.')) || 0,
+              modulation: parseFloat((data['PE1 Modulation[%]'] || data['PE1 Modulation[%] '])?.replace(',', '.')) || 0,
+              fanSpeed: parseFloat((data['PE1 Luefterdrehzahl[%]'] || data['PE1 Luefterdrehzahl[%] '])?.replace(',', '.')) || 0,
+              runtime: parseFloat((data['PE1 Runtime[h]'] || data['PE1 Runtime[h] '])?.replace(',', '.')) || 0,
+              status: parseInt(data['PE1 Status'] || data['PE1 Status ']) || 0,
+              hotWaterInTemp: parseFloat((data['WW1 EinT Ist[°C]'] || data['WW1 EinT Ist[°C] '])?.replace(',', '.')) || 0,
+              hotWaterOutTemp: parseFloat((data['WW1 AusT Ist[°C]'] || data['WW1 AusT Ist[°C] '])?.replace(',', '.')) || 0,
               filename: filename
             };
 
