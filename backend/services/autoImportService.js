@@ -13,6 +13,13 @@ class AutoImportService {
     this.isWatching = false;
     this.gmailService = new GmailService();
     this.gmailInitialized = false;
+    this.stats = {
+      filesProcessed: 0,
+      errors: 0,
+      lastRun: null,
+      totalFiles: 0,
+      successfulFiles: 0
+    };
     this.config = {
       autoImport: false,
       watchFolders: [],
@@ -118,7 +125,7 @@ class AutoImportService {
       const processCallback = async (filePath, metadata) => {
         try {
           console.log(`🔄 Traitement automatique: ${path.basename(filePath)}`);
-          const result = await autoImportService.processCSVFile(filePath);
+          const result = await autoImportService.importCSVFile(filePath, path.basename(filePath));
           
           if (result.success) {
             console.log(`✅ Import réussi: ${result.validEntries} entrées`);
