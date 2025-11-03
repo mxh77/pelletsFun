@@ -357,12 +357,21 @@ class AutoImportService {
         .on('data', (data) => {
           lineCount++;
           
+          // Debug: afficher les clés disponibles pour la première ligne
+          if (lineCount === 1) {
+            console.log('🔍 Clés disponibles:', Object.keys(data));
+            console.log('🔍 Première ligne:', data);
+          }
+          
           try {
             const [day, month, year] = data.Datum?.split('.') || [];
             
             // Vérifier que les composants de la date existent
             if (!day || !month || !year) {
-              console.log(`❌ Date invalide: ${data.Datum}`);
+              if (lineCount <= 5) { // Ne pas spammer les logs
+                console.log(`❌ Date invalide ligne ${lineCount}: ${data.Datum}`);
+                console.log('🔍 Données disponibles:', Object.keys(data));
+              }
               return;
             }
             
