@@ -477,18 +477,18 @@ exports.updateGmailConfig = async (req, res) => {
   try {
     const { enabled, sender, subject, maxResults, daysBack } = req.body;
     
-    autoImportService.updateGmailConfig({
-      enabled: enabled !== undefined ? enabled : autoImportService.config.gmail.enabled,
-      sender: sender || autoImportService.config.gmail.sender,
-      subject: subject || autoImportService.config.gmail.subject,
-      maxResults: maxResults || autoImportService.config.gmail.maxResults,
-      daysBack: daysBack || autoImportService.config.gmail.daysBack
+    const updatedConfig = await autoImportService.updateGmailConfig({
+      enabled: enabled !== undefined ? enabled : autoImportService.config.gmail?.enabled,
+      sender: sender || autoImportService.config.gmail?.sender,
+      subject: subject || autoImportService.config.gmail?.subject,
+      maxResults: maxResults || autoImportService.config.gmail?.maxResults,
+      daysBack: daysBack || autoImportService.config.gmail?.daysBack
     });
     
     res.json({
       success: true,
-      message: 'Configuration Gmail mise à jour',
-      config: autoImportService.config.gmail
+      message: 'Configuration Gmail mise à jour et sauvegardée',
+      config: updatedConfig
     });
   } catch (error) {
     console.error('Erreur mise à jour Gmail:', error);

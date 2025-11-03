@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const csv = require('csv-parser');
 const BoilerData = require('../models/BoilerData');
+const GmailConfig = require('../models/GmailConfig');
 const GmailService = require('./gmailService');
 
 class AutoImportService {
@@ -28,20 +29,38 @@ class AutoImportService {
       fs.mkdirSync(this.config.emailSettings.downloadPath, { recursive: true });
     }
     
-    // Configuration Gmail par défaut
-    this.config.gmail = {
-      enabled: false,
-      sender: '',
-      subject: 'okofen',
-      maxResults: 10,
-      daysBack: 7
-    };
+    // La configuration Gmail sera chargée depuis la base de données
+    this.config.gmail = null;
+  }
+
+  // Charger la configuration Gmail depuis la base de données
+  async loadGmailConfig() {
+    try {
+      const gmailConfig = await GmailConfig.getConfig();
+      this.config.gmail = gmailConfig.toObject();
+      return gmailConfig;
+    } catch (error) {
+      console.error('❌ Erreur chargement config Gmail:', error);
+      // Configuration par défaut en cas d'erreur
+      this.config.gmail = {
+        enabled: false,
+        sender: '',
+        subject: 'okofen',
+        maxResults: 10,
+        daysBack: 7
+      };
+      return null;
+    }
   }
 
   // Initialiser le service Gmail
   async initializeGmail() {
     try {
       console.log('🔧 Initialisation du service Gmail...');
+      
+      // Charger la configuration depuis la base
+      await this.loadGmailConfig();
+      
       const result = await this.gmailService.initialize();
       
       if (result.configured) {
@@ -61,10 +80,21 @@ class AutoImportService {
     }
   }
 
-  // Configurer Gmail
-  updateGmailConfig(config) {
-    this.config.gmail = { ...this.config.gmail, ...config };
-    console.log('📧 Configuration Gmail mise à jour:', this.config.gmail);
+  // Configurer Gmail et sauvegarder en base
+  async updateGmailConfig(config) {
+    try {
+      // Mettre à jour en base de données
+      const updatedConfig = await GmailConfig.updateConfig(config);
+      
+      // Mettre à jour la configuration locale
+      this.config.gmail = updatedConfig.toObject();
+      
+      console.log('📧 Configuration Gmail mise à jour et sauvegardée:', this.config.gmail);
+      return updatedConfig;
+    } catch (error) {
+      console.error('❌ Erreur mise à jour config Gmail:', error);
+      throw error;
+    }
   }
 
   // Traitement complet des emails Okofen
