@@ -15,7 +15,7 @@ const EditDeliveryForm = () => {
   useEffect(() => {
     const fetchDelivery = async () => {
       try {
-        const response = await axios.get(`${process.env.REACT_APP_API_URL}/deliveries/${id}`);
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/deliveries/${id}`);
         const delivery = response.data;
         setDate(new Date(delivery.date).toISOString().split('T')[0]); // Convertir la date au format yyyy-MM-dd
         setQuantity(delivery.quantity);
@@ -31,7 +31,7 @@ const EditDeliveryForm = () => {
     e.preventDefault();
     const updatedDelivery = { date, quantity: parseInt(quantity, 10), price: parseFloat(price) };
     try {
-      await axios.put(`${process.env.REACT_APP_API_URL}/deliveries/${id}`, updatedDelivery);
+      await axios.put(`${process.env.REACT_APP_API_URL}/api/deliveries/${id}`, updatedDelivery);
       navigate('/'); // Rediriger vers la page de la liste des livraisons
     } catch (error) {
       console.error('There was an error updating the delivery!', error);

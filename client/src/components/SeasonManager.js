@@ -34,19 +34,21 @@ const SeasonManager = () => {
 
   const fetchSeasons = async () => {
     try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/seasons`);
-      setSeasons(response.data);
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/seasons`);
+      setSeasons(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching seasons:', error);
+      setSeasons([]);
     }
   };
 
   const fetchSeasonsWithStats = async () => {
     try {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/seasons/stats`);
-      setSeasonsWithStats(response.data);
+      const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/seasons/stats`);
+      setSeasonsWithStats(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error fetching season stats:', error);
+      setSeasonsWithStats([]);
     }
   };
 
@@ -62,10 +64,10 @@ const SeasonManager = () => {
     e.preventDefault();
     try {
       if (editingId) {
-        await axios.put(`${process.env.REACT_APP_API_URL}/seasons/${editingId}`, formData);
+        await axios.put(`${process.env.REACT_APP_API_URL}/api/seasons/${editingId}`, formData);
         setMessage('Saison mise à jour avec succès');
       } else {
-        await axios.post(`${process.env.REACT_APP_API_URL}/seasons`, formData);
+        await axios.post(`${process.env.REACT_APP_API_URL}/api/seasons`, formData);
         setMessage('Saison créée avec succès');
       }
       resetForm();
@@ -91,7 +93,7 @@ const SeasonManager = () => {
   const handleDelete = async (id) => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer cette saison ?')) {
       try {
-        await axios.delete(`${process.env.REACT_APP_API_URL}/seasons/${id}`);
+        await axios.delete(`${process.env.REACT_APP_API_URL}/api/seasons/${id}`);
         setMessage('Saison supprimée');
         fetchSeasons();
         fetchSeasonsWithStats();

@@ -14,7 +14,7 @@ const RechargeForm = () => {
     e.preventDefault();
     const newRecharge = { date, quantity };
     try {
-      await axios.post(`${process.env.REACT_APP_API_URL}/recharges`, newRecharge);
+      await axios.post(`${process.env.REACT_APP_API_URL}/api/recharges`, newRecharge);
       setDate('');
       setQuantity('');
       setError(''); // Clear any previous error

@@ -14,7 +14,7 @@ const EditRechargeForm = () => {
   useEffect(() => {
     const fetchRecharge = async () => {
       try {
-        const response = await axios.get(`${process.env.REACT_APP_API_URL}/recharges/${id}`);
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/recharges/${id}`);
         const recharge = response.data;
         setDate(new Date(recharge.date).toISOString().split('T')[0]); // Convertir la date au format yyyy-MM-dd
         setQuantity(recharge.quantity);
@@ -29,7 +29,7 @@ const EditRechargeForm = () => {
     e.preventDefault();
     const updatedRecharge = { date, quantity: parseInt(quantity, 10) };
     try {
-      await axios.put(`${process.env.REACT_APP_API_URL}/recharges/${id}`, updatedRecharge);
+      await axios.put(`${process.env.REACT_APP_API_URL}/api/recharges/${id}`, updatedRecharge);
       navigate('/'); // Rediriger vers la page de la liste des chargements
     } catch (error) {
       console.error('There was an error updating the recharge!', error);
