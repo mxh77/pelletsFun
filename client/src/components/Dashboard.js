@@ -29,15 +29,27 @@ const Dashboard = () => {
     const fetchStats = async () => {
       try {
         // Recalculer le stock avant de récupérer les données
-        await axios.post(`${process.env.REACT_APP_API_URL}/api/deliveries/recalculate-stock`);
+        try {
+          await axios.post(`${process.env.REACT_APP_API_URL}/api/deliveries/recalculate-stock`);
+        } catch (recalcError) {
+          console.warn('Erreur lors du recalcul du stock:', recalcError.message);
+          // Continue même si le recalcul échoue
+        }
         
-        const [deliveriesRes, rechargesRes] = await Promise.all([
-          axios.get(`${process.env.REACT_APP_API_URL}/api/deliveries`),
-          axios.get(`${process.env.REACT_APP_API_URL}/api/recharges`)
-        ]);
-
-        const deliveries = Array.isArray(deliveriesRes.data) ? deliveriesRes.data : [];
-        const recharges = Array.isArray(rechargesRes.data) ? rechargesRes.data : [];
+        let deliveries = [];
+        let recharges = [];
+        
+        try {
+          const [deliveriesRes, rechargesRes] = await Promise.all([
+            axios.get(`${process.env.REACT_APP_API_URL}/api/deliveries`),
+            axios.get(`${process.env.REACT_APP_API_URL}/api/recharges`)
+          ]);
+          deliveries = Array.isArray(deliveriesRes.data) ? deliveriesRes.data : [];
+          recharges = Array.isArray(rechargesRes.data) ? rechargesRes.data : [];
+        } catch (dataError) {
+          console.warn('Erreur lors de la récupération des données de livraison/recharge:', dataError.message);
+          // Continuer avec des tableaux vides
+        }
 
         // Calculs
         const totalDeliveries = deliveries.reduce((sum, d) => sum + d.quantity, 0);

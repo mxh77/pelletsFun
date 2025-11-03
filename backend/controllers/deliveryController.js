@@ -70,6 +70,15 @@ exports.recalculateStock = async (req, res) => {
     const deliveries = await Delivery.find().sort({ date: 1 });
     const recharges = await Recharge.find().sort({ date: 1 });
 
+    // Si pas de données, retourner succès sans traitement
+    if (deliveries.length === 0 && recharges.length === 0) {
+      return res.status(200).json({ 
+        message: 'Aucune donnée à recalculer',
+        deliveries: 0,
+        recharges: 0
+      });
+    }
+
     // Reset remainingQuantity to the original quantity
     for (const delivery of deliveries) {
       delivery.remainingQuantity = delivery.quantity;
@@ -90,9 +99,13 @@ exports.recalculateStock = async (req, res) => {
       }
     }
 
-    res.status(200).json({ message: 'Stock recalculé avec succès' });
+    res.status(200).json({ 
+      message: 'Stock recalculé avec succès',
+      deliveries: deliveries.length,
+      recharges: recharges.length
+    });
   } catch (err) {
     console.error('Error recalculating stock:', err.message);
-    res.status(400).json({ error: err.message });
+    res.status(500).json({ error: err.message });
   }
 };
