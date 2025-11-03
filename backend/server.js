@@ -10,9 +10,18 @@ const app = express();
 // Connect to database
 connectDB();
 
+// Configuration CORS selon l'environnement
+const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL;
+const allowedOrigins = isProduction 
+  ? ['https://mxh77.github.io', 'https://pelletsfun.harmonixe.fr']
+  : ['http://localhost:8080', 'https://mxh77.github.io', 'https://pelletsfun.harmonixe.fr'];
+
+console.log(`🌐 Environnement: ${isProduction ? 'PRODUCTION' : 'DÉVELOPPEMENT'}`);
+console.log(`🔐 Origins autorisés: ${allowedOrigins.join(', ')}`);
+
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:8080', 'https://mxh77.github.io', 'https://pelletsfun.harmonixe.fr'],
+  origin: allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));

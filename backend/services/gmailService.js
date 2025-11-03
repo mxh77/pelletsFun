@@ -15,11 +15,18 @@ class GmailService {
    */
   async initialize(credentialsPath = null) {
     try {
+      // Détecter l'environnement (production ou développement)
+      const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL;
+      
       // Chemins par défaut pour les fichiers de configuration
-      const defaultCredentialsPath = path.join(process.cwd(), 'config', 'gmail-credentials.json');
+      const credentialsFilename = isProduction ? 'gmail-credentials.production.json' : 'gmail-credentials.json';
+      const defaultCredentialsPath = path.join(process.cwd(), 'config', credentialsFilename);
       const tokenPath = path.join(process.cwd(), 'config', 'gmail-token.json');
       
       const credsPath = credentialsPath || defaultCredentialsPath;
+      
+      console.log(`🌐 Environnement détecté: ${isProduction ? 'PRODUCTION' : 'DÉVELOPPEMENT'}`);
+      console.log(`📁 Fichier credentials: ${credentialsFilename}`);
 
       // Vérifier si les credentials existent
       try {
