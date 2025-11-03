@@ -14,7 +14,7 @@ const DeliveryForm = () => {
     e.preventDefault();
     const newDelivery = { date, quantity, price };
     try {
-      await axios.post(`${process.env.REACT_APP_API_URL}/deliveries`, newDelivery);
+      await axios.post(`${process.env.REACT_APP_API_URL}/api/deliveries`, newDelivery);
       setDate('');
       setQuantity('');
       setPrice('');

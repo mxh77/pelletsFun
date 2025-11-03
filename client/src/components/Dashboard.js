@@ -29,11 +29,11 @@ const Dashboard = () => {
     const fetchStats = async () => {
       try {
         // Recalculer le stock avant de récupérer les données
-        await axios.post(`${process.env.REACT_APP_API_URL}/deliveries/recalculate-stock`);
+        await axios.post(`${process.env.REACT_APP_API_URL}/api/deliveries/recalculate-stock`);
         
         const [deliveriesRes, rechargesRes] = await Promise.all([
-          axios.get(`${process.env.REACT_APP_API_URL}/deliveries`),
-          axios.get(`${process.env.REACT_APP_API_URL}/recharges`)
+          axios.get(`${process.env.REACT_APP_API_URL}/api/deliveries`),
+          axios.get(`${process.env.REACT_APP_API_URL}/api/recharges`)
         ]);
 
         const deliveries = Array.isArray(deliveriesRes.data) ? deliveriesRes.data : [];

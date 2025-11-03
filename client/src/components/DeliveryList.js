@@ -11,7 +11,7 @@ const DeliveryList = () => {
   useEffect(() => {
     const fetchDeliveries = async () => {
       try {
-        const response = await axios.get(`${process.env.REACT_APP_API_URL}/deliveries`);
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/deliveries`);
         setDeliveries(Array.isArray(response.data) ? response.data : []);
       } catch (error) {
         console.error('Erreur lors du chargement des livraisons:', error);
@@ -23,7 +23,7 @@ const DeliveryList = () => {
 
   const handleDelete = async (id) => {
     try {
-      await axios.delete(`${process.env.REACT_APP_API_URL}/deliveries/${id}`);
+      await axios.delete(`${process.env.REACT_APP_API_URL}/api/deliveries/${id}`);
       setDeliveries(deliveries.filter(delivery => delivery._id !== id));
     } catch (error) {
       console.error('There was an error deleting the delivery!', error);
@@ -32,9 +32,9 @@ const DeliveryList = () => {
 
   const handleRecalculateStock = async () => {
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/deliveries/recalculate-stock`);
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/deliveries/recalculate-stock`);
       setMessage(response.data.message);
-      const updatedDeliveries = await axios.get(`${process.env.REACT_APP_API_URL}/deliveries`);
+      const updatedDeliveries = await axios.get(`${process.env.REACT_APP_API_URL}/api/deliveries`);
       setDeliveries(updatedDeliveries.data);
     } catch (error) {
       console.error('There was an error recalculating the stock!', error);

@@ -10,15 +10,20 @@ const RechargeList = () => {
 
   useEffect(() => {
     const fetchRecharges = async () => {
-      const response = await axios.get(`${process.env.REACT_APP_API_URL}/recharges`);
-      setRecharges(response.data);
+      try {
+        const response = await axios.get(`${process.env.REACT_APP_API_URL}/api/recharges`);
+        setRecharges(Array.isArray(response.data) ? response.data : []);
+      } catch (error) {
+        console.error('Erreur lors du chargement des recharges:', error);
+        setRecharges([]);
+      }
     };
     fetchRecharges();
   }, []);
 
   const handleDelete = async (id) => {
     try {
-      await axios.delete(`${process.env.REACT_APP_API_URL}/recharges/${id}`);
+      await axios.delete(`${process.env.REACT_APP_API_URL}/api/recharges/${id}`);
       setRecharges(recharges.filter(recharge => recharge._id !== id));
     } catch (error) {
       console.error('There was an error deleting the recharge!', error);
@@ -27,10 +32,10 @@ const RechargeList = () => {
 
   const handleRecalculateAmounts = async () => {
     try {
-      const response = await axios.post(`${process.env.REACT_APP_API_URL}/recharges/recalculate-amounts`);
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/recharges/recalculate-amounts`);
       setMessage(response.data.message);
-      const updatedRecharges = await axios.get(`${process.env.REACT_APP_API_URL}/recharges`);
-      setRecharges(updatedRecharges.data);
+      const updatedRecharges = await axios.get(`${process.env.REACT_APP_API_URL}/api/recharges`);
+      setRecharges(Array.isArray(updatedRecharges.data) ? updatedRecharges.data : []);
     } catch (error) {
       console.error('There was an error recalculating the amounts!', error);
       setMessage('Error recalculating amounts');
