@@ -359,6 +359,13 @@ class AutoImportService {
           
           try {
             const [day, month, year] = data.Datum?.split('.') || [];
+            
+            // Vérifier que les composants de la date existent
+            if (!day || !month || !year) {
+              console.log(`❌ Date invalide: ${data.Datum}`);
+              return;
+            }
+            
             const dateStr = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
             const date = new Date(dateStr);
             
