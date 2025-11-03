@@ -1,2 +1,8 @@
 node_modules
 .vercel
+
+# Configuration secrets - NE PAS COMMITER
+backend/config/gmail-credentials.json
+backend/config/gmail-token.json
+backend/config/*.json
+!backend/config/*.example.json
