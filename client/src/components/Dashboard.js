@@ -219,6 +219,10 @@ const Dashboard = () => {
                 <strong>Consommation moyenne :</strong>
                 <span className="ms-2">{stats.monthlyConsumption.toFixed(1)} sacs/mois</span>
               </div>
+              <div className="activity-item mt-2">
+                <strong>Données calculées :</strong>
+                <span className="ms-2">jusqu'au {new Date().toLocaleDateString('fr-FR')}</span>
+              </div>
             </Card.Body>
           </Card>
         </Col>

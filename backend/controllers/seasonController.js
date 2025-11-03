@@ -119,8 +119,9 @@ exports.getSeasonStats = async (req, res) => {
     const seasons = await Season.find().sort({ startDate: -1 });
     
     const seasonsWithStats = await Promise.all(seasons.map(async (season) => {
-      // Utiliser la date du jour si la saison est active et n'a pas de date de fin
-      const endDate = season.endDate || (season.isActive ? new Date() : season.startDate);
+      // Pour les saisons actives, toujours utiliser la date du jour
+      // Pour les saisons terminées, utiliser leur date de fin
+      const endDate = season.isActive ? new Date() : (season.endDate || new Date());
       
       const recharges = await Recharge.find({
         date: {
@@ -138,6 +139,8 @@ exports.getSeasonStats = async (req, res) => {
       
       return {
         ...season.toObject(),
+        // Pour l'affichage, utiliser la date du jour si saison active sans date de fin
+        effectiveEndDate: season.isActive && !season.endDate ? new Date() : season.endDate,
         stats: {
           totalQuantity,
           totalAmount,

@@ -270,8 +270,17 @@ const SeasonManager = () => {
                       {formatDate(season.startDate)}
                     </div>
                     <div className="small">
-                      <FontAwesomeIcon icon={faStop} className="text-danger me-1" />
-                      {season.endDate ? formatDate(season.endDate) : 'En cours...'}
+                      {season.isActive && !season.endDate ? (
+                        <>
+                          <FontAwesomeIcon icon={faPlay} className="text-warning me-1" />
+                          En cours (jusqu'à aujourd'hui)
+                        </>
+                      ) : (
+                        <>
+                          <FontAwesomeIcon icon={faStop} className="text-danger me-1" />
+                          {season.endDate ? formatDate(season.endDate) : 'Non définie'}
+                        </>
+                      )}
                     </div>
                   </td>
                   <td>{season.stats?.durationDays} jours</td>
