@@ -10,6 +10,8 @@ const BoilerManager = () => {
   const [loading, setLoading] = useState(false);
   const [autoImportStatus, setAutoImportStatus] = useState(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [cronStatus, setCronStatus] = useState(null);
+  const [cronSchedule, setCronSchedule] = useState('0 8 * * *'); // 8h du matin par défaut
   const [dateRange, setDateRange] = useState({
     startDate: '',
     endDate: ''
@@ -20,6 +22,7 @@ const BoilerManager = () => {
   useEffect(() => {
     loadStats();
     loadAutoImportStatus();
+    loadCronStatus();
   }, []);
 
   const loadStats = async () => {
@@ -39,6 +42,62 @@ const BoilerManager = () => {
     } catch (error) {
       console.error('Erreur chargement auto-import status:', error);
     }
+  };
+
+  const loadCronStatus = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/boiler/cron/status`);
+      setCronStatus(response.data);
+      if (response.data.schedule) {
+        setCronSchedule(response.data.schedule);
+      }
+    } catch (error) {
+      console.error('Erreur chargement cron status:', error);
+    }
+  };
+
+  const updateCronSchedule = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.post(`${API_URL}/api/boiler/cron/schedule`, {
+        schedule: cronSchedule,
+        enabled: true
+      });
+      
+      setImportResult({
+        success: true,
+        message: response.data.message
+      });
+      
+      await loadCronStatus();
+    } catch (error) {
+      console.error('Erreur mise à jour planning:', error);
+      setImportResult({ 
+        error: error.response?.data?.error || 'Erreur lors de la mise à jour du planning' 
+      });
+    }
+    setLoading(false);
+  };
+
+  const toggleCronJob = async () => {
+    setLoading(true);
+    try {
+      const endpoint = cronStatus?.isActive ? 'stop' : 'start';
+      const response = await axios.post(`${API_URL}/api/boiler/cron/${endpoint}`);
+      
+      setImportResult({
+        success: true,
+        message: response.data.message
+      });
+      
+      await loadCronStatus();
+    } catch (error) {
+      console.error('Erreur toggle cron:', error);
+      setImportResult({ 
+        error: error.response?.data?.error || 'Erreur lors du toggle du traitement automatique' 
+      });
+    }
+    setLoading(false);
   };
 
   const handleImportCSV = async (filename) => {
@@ -384,6 +443,113 @@ const BoilerManager = () => {
             )}
           </div>
         )}
+      </div>
+
+      {/* Traitement Automatique Quotidien */}
+      <div className="boiler-section">
+        <h3>⏰ Traitement Automatique Quotidien</h3>
+        <div className="cron-section">
+          <div className="cron-status">
+            <div className="status-indicator">
+              <span className={`status-dot ${cronStatus?.isActive ? 'active' : 'inactive'}`}></span>
+              <span className="status-text">
+                {cronStatus?.isActive ? 'Traitement Activé' : 'Traitement Désactivé'}
+              </span>
+            </div>
+            
+            {cronStatus?.isActive && (
+              <div className="cron-schedule">
+                📅 Planning: {cronStatus.schedule} (Heure française)
+              </div>
+            )}
+            
+            {cronStatus?.lastRun && (
+              <div className="last-run">
+                🕒 Dernière exécution: {new Date(cronStatus.lastRun).toLocaleString('fr-FR')}
+              </div>
+            )}
+          </div>
+
+          <div className="cron-controls">
+            <div className="schedule-input">
+              <label htmlFor="cron-schedule">Planning (format cron):</label>
+              <input
+                id="cron-schedule"
+                type="text"
+                value={cronSchedule}
+                onChange={(e) => setCronSchedule(e.target.value)}
+                placeholder="0 8 * * * (tous les jours à 8h)"
+                className="cron-input"
+              />
+              <button 
+                onClick={updateCronSchedule}
+                disabled={loading}
+                className="btn-update-cron"
+              >
+                📅 Mettre à jour Planning
+              </button>
+            </div>
+            
+            <button 
+              onClick={toggleCronJob}
+              disabled={loading}
+              className={`btn-toggle-cron ${cronStatus?.isActive ? 'active' : 'inactive'}`}
+            >
+              {cronStatus?.isActive ? '⏸️ Arrêter' : '▶️ Démarrer'} Traitement Automatique
+            </button>
+          </div>
+
+          <div className="cron-info">
+            <h5>📋 Comment ça fonctionne :</h5>
+            <ul>
+              <li>🔍 <strong>Vérification automatique :</strong> Le système vérifie votre messagerie Gmail selon le planning défini</li>
+              <li>📧 <strong>Détection des mails :</strong> Recherche automatique des nouveaux mails de votre chaudière Okofen</li>
+              <li>📥 <strong>Téléchargement :</strong> Extraction et téléchargement automatique des fichiers CSV joints</li>
+              <li>💾 <strong>Import en base :</strong> Traitement et import automatique des données dans MongoDB</li>
+              <li>📊 <strong>Mise à jour :</strong> Actualisation automatique des statistiques et graphiques</li>
+            </ul>
+            
+            <div className="cron-examples">
+              <h5>💡 Exemples de planning :</h5>
+              <table className="cron-table">
+                <tbody>
+                  <tr>
+                    <td><code>0 8 * * *</code></td>
+                    <td>Tous les jours à 8h00</td>
+                  </tr>
+                  <tr>
+                    <td><code>0 6,18 * * *</code></td>
+                    <td>Tous les jours à 6h00 et 18h00</td>
+                  </tr>
+                  <tr>
+                    <td><code>0 9 * * 1</code></td>
+                    <td>Tous les lundis à 9h00</td>
+                  </tr>
+                  <tr>
+                    <td><code>*/30 * * * *</code></td>
+                    <td>Toutes les 30 minutes</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            
+            {cronStatus?.stats && (
+              <div className="cron-stats">
+                <h5>📈 Statistiques :</h5>
+                <div className="stats-grid">
+                  <div className="stat-item">
+                    <span className="stat-label">Fichiers traités:</span>
+                    <span className="stat-value">{cronStatus.stats.filesProcessed || 0}</span>
+                  </div>
+                  <div className="stat-item">
+                    <span className="stat-label">Erreurs:</span>
+                    <span className="stat-value">{cronStatus.stats.errors || 0}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Statistiques générales */}

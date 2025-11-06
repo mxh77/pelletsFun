@@ -29,4 +29,10 @@ router.get('/gmail/auth', boilerController.getGmailAuthUrl);
 router.get('/gmail/callback', boilerController.handleGmailAuthCallback);
 router.post('/gmail/process', boilerController.processGmailEmails);
 
+// Routes Traitement Automatique Quotidien
+router.get('/cron/status', boilerController.getCronStatus);
+router.post('/cron/schedule', boilerController.updateCronSchedule);
+router.post('/cron/start', boilerController.startCronJob);
+router.post('/cron/stop', boilerController.stopCronJob);
+
 module.exports = router;

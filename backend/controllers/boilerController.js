@@ -3,6 +3,7 @@ const csv = require('csv-parser');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const cron = require('node-cron');
 
 // Configuration de multer pour l'upload de fichiers
 const storage = multer.diskStorage({
@@ -545,6 +546,86 @@ exports.processGmailEmails = async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('Erreur traitement Gmail:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Configuration du traitement automatique quotidien
+exports.getCronStatus = async (req, res) => {
+  try {
+    const status = {
+      isActive: autoImportService.cronJob ? true : false,
+      schedule: autoImportService.config.cronSchedule,
+      gmailEnabled: autoImportService.config.gmail?.enabled || false,
+      lastRun: autoImportService.stats.lastRun,
+      stats: autoImportService.stats
+    };
+    res.json(status);
+  } catch (error) {
+    console.error('Erreur statut cron:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.updateCronSchedule = async (req, res) => {
+  try {
+    const { schedule, enabled } = req.body;
+    
+    // Valider le format cron
+    if (schedule && !cron.validate(schedule)) {
+      return res.status(400).json({ error: 'Format de planning invalide' });
+    }
+    
+    // Arrêter l'ancien cron s'il existe
+    if (autoImportService.cronJob) {
+      autoImportService.stopCronJob();
+    }
+    
+    // Mettre à jour la configuration
+    if (schedule) {
+      autoImportService.config.cronSchedule = schedule;
+    }
+    
+    // Démarrer le nouveau cron si activé
+    if (enabled) {
+      autoImportService.startCronJob();
+    }
+    
+    res.json({
+      success: true,
+      message: 'Planning mis à jour',
+      schedule: autoImportService.config.cronSchedule,
+      active: autoImportService.cronJob ? true : false
+    });
+  } catch (error) {
+    console.error('Erreur mise à jour cron:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.startCronJob = async (req, res) => {
+  try {
+    autoImportService.startCronJob();
+    res.json({
+      success: true,
+      message: 'Traitement automatique démarré',
+      schedule: autoImportService.config.cronSchedule
+    });
+  } catch (error) {
+    console.error('Erreur démarrage cron:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.stopCronJob = async (req, res) => {
+  try {
+    autoImportService.stopCronJob();
+    res.json({
+      success: true,
+      message: 'Traitement automatique arrêté'
+    });
+  } catch (error) {
+    console.error('Erreur arrêt cron:', error);
     res.status(500).json({ error: error.message });
   }
 };
