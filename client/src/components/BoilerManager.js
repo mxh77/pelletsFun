@@ -12,6 +12,8 @@ const BoilerManager = () => {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [cronStatus, setCronStatus] = useState(null);
   const [cronSchedule, setCronSchedule] = useState('0 8 * * *'); // 8h du matin par défaut
+  const [importHistory, setImportHistory] = useState(null);
+  const [showHistory, setShowHistory] = useState(false);
   const [dateRange, setDateRange] = useState({
     startDate: '',
     endDate: ''
@@ -223,6 +225,20 @@ const BoilerManager = () => {
       console.error('Erreur vérification:', error);
       setImportResult({ 
         error: error.response?.data?.error || 'Erreur lors de la vérification' 
+      });
+    }
+    setLoading(false);
+  };
+
+  const loadImportHistory = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`${API_URL}/api/boiler/import-history`);
+      setImportHistory(response.data);
+    } catch (error) {
+      console.error('Erreur chargement historique:', error);
+      setImportHistory({ 
+        error: error.response?.data?.error || 'Erreur lors du chargement de l\'historique' 
       });
     }
     setLoading(false);
@@ -550,6 +566,107 @@ const BoilerManager = () => {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Historique des imports */}
+      <div className="boiler-section">
+        <h3>📋 Historique des Imports</h3>
+        
+        <div className="history-controls">
+          <button 
+            onClick={() => {
+              if (!showHistory && !importHistory) {
+                loadImportHistory();
+              }
+              setShowHistory(!showHistory);
+            }}
+            disabled={loading}
+            className="btn-history-toggle"
+          >
+            📂 {showHistory ? 'Masquer' : 'Afficher'} l'Historique
+          </button>
+          
+          {showHistory && importHistory && !importHistory.error && (
+            <button 
+              onClick={loadImportHistory}
+              disabled={loading}
+              className="btn-refresh-history"
+            >
+              🔄 Actualiser
+            </button>
+          )}
+        </div>
+
+        {showHistory && (
+          <div className="import-history">
+            {!importHistory ? (
+              <div className="loading-history">⏳ Chargement de l'historique...</div>
+            ) : importHistory.error ? (
+              <div className="error-history">❌ {importHistory.error}</div>
+            ) : (
+              <div>
+                <div className="history-summary">
+                  <div className="summary-cards">
+                    <div className="summary-card">
+                      <span className="summary-number">{importHistory.totalFiles}</span>
+                      <span className="summary-label">Fichiers</span>
+                    </div>
+                    <div className="summary-card">
+                      <span className="summary-number">{importHistory.totalEntries.toLocaleString()}</span>
+                      <span className="summary-label">Entrées</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="history-table-container">
+                  <table className="history-table">
+                    <thead>
+                      <tr>
+                        <th>Fichier</th>
+                        <th>Statut</th>
+                        <th>Entrées</th>
+                        <th>Période</th>
+                        <th>Temp. Moy.</th>
+                        <th>Import</th>
+                        <th>Taille</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importHistory.files.map((file, index) => (
+                        <tr key={index} className={`history-row ${file.status}`}>
+                          <td className="file-name">
+                            <span className="filename-icon">📄</span>
+                            <span className="filename-text" title={file.filename}>
+                              {file.filename}
+                            </span>
+                          </td>
+                          <td className="file-status">
+                            <span className={`status-badge ${file.status}`}>
+                              {file.status === 'success' ? '✅' : '⚠️'}
+                              {file.fileExists ? ' 💾' : ''}
+                            </span>
+                          </td>
+                          <td className="file-entries">{file.totalEntries.toLocaleString()}</td>
+                          <td className="file-period">
+                            {file.dateRange.min === file.dateRange.max 
+                              ? new Date(file.dateRange.min).toLocaleDateString()
+                              : `${new Date(file.dateRange.min).toLocaleDateString()} → ${new Date(file.dateRange.max).toLocaleDateString()}`
+                            }
+                          </td>
+                          <td className="file-temp">{file.avgOutsideTemp}°C</td>
+                          <td className="file-import">{new Date(file.firstImport).toLocaleDateString()}</td>
+                          <td className="file-size">
+                            {file.fileExists ? `${file.fileSize} KB` : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Statistiques générales */}

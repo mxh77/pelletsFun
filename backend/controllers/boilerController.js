@@ -629,3 +629,115 @@ exports.stopCronJob = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+exports.getImportHistory = async (req, res) => {
+  try {
+    // Récupérer les fichiers uniques avec leurs statistiques
+    const fileStats = await BoilerData.aggregate([
+      {
+        $group: {
+          _id: "$filename",
+          totalEntries: { $sum: 1 },
+          firstImport: { $min: "$createdAt" },
+          lastImport: { $max: "$createdAt" },
+          dateRange: {
+            $addToSet: {
+              $dateToString: {
+                format: "%Y-%m-%d",
+                date: "$date"
+              }
+            }
+          },
+          avgOutsideTemp: { $avg: "$outsideTemp" },
+          totalRuntime: { 
+            $sum: { 
+              $cond: [{ $gt: ["$runtime", 0] }, 1, 0] 
+            } 
+          }
+        }
+      },
+      {
+        $project: {
+          filename: "$_id",
+          totalEntries: 1,
+          firstImport: 1,
+          lastImport: 1,
+          dateRange: {
+            $reduce: {
+              input: "$dateRange",
+              initialValue: { min: null, max: null },
+              in: {
+                min: {
+                  $cond: [
+                    { $or: [{ $eq: ["$$value.min", null] }, { $lt: ["$$this", "$$value.min"] }] },
+                    "$$this",
+                    "$$value.min"
+                  ]
+                },
+                max: {
+                  $cond: [
+                    { $or: [{ $eq: ["$$value.max", null] }, { $gt: ["$$this", "$$value.max"] }] },
+                    "$$this",
+                    "$$value.max"
+                  ]
+                }
+              }
+            }
+          },
+          avgOutsideTemp: { $round: ["$avgOutsideTemp", 1] },
+          totalRuntime: 1,
+          _id: 0
+        }
+      },
+      {
+        $sort: { firstImport: -1 }
+      }
+    ]);
+
+    // Ajouter des informations sur les fichiers physiques s'ils existent
+    const enrichedStats = fileStats.map(stat => {
+      // Vérifier si le fichier existe dans les dossiers de téléchargement
+      const possiblePaths = [
+        path.join(process.cwd(), 'auto-downloads', stat.filename),
+        path.join(process.cwd(), stat.filename),
+        path.join(process.cwd(), 'uploads', stat.filename)
+      ];
+
+      let fileExists = false;
+      let fileSize = 0;
+      let filePath = null;
+
+      for (const testPath of possiblePaths) {
+        if (fs.existsSync(testPath)) {
+          fileExists = true;
+          filePath = testPath;
+          try {
+            fileSize = fs.statSync(testPath).size;
+          } catch (e) {
+            fileSize = 0;
+          }
+          break;
+        }
+      }
+
+      return {
+        ...stat,
+        fileExists,
+        fileSize: Math.round(fileSize / 1024), // KB
+        filePath: fileExists ? filePath : null,
+        status: stat.totalEntries > 0 ? 'success' : 'empty'
+      };
+    });
+
+    res.json({
+      success: true,
+      files: enrichedStats,
+      totalFiles: enrichedStats.length,
+      totalEntries: enrichedStats.reduce((sum, f) => sum + f.totalEntries, 0)
+    });
+
+  } catch (error) {
+    console.error('Erreur récupération historique:', error);
+    res.status(500).json({ error: error.message });
+  }
+};

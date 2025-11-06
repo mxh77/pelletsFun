@@ -991,3 +991,244 @@ button:disabled {
     width: 40%;
   }
 }
+
+/* Historique des imports */
+.history-controls {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn-history-toggle {
+  background: linear-gradient(135deg, #673ab7, #512da8);
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+}
+
+.btn-history-toggle:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(103, 58, 183, 0.3);
+}
+
+.btn-refresh-history {
+  background: linear-gradient(135deg, #00bcd4, #0097a7);
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+}
+
+.btn-refresh-history:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 188, 212, 0.3);
+}
+
+.import-history {
+  margin-top: 20px;
+}
+
+.loading-history, .error-history {
+  text-align: center;
+  padding: 40px;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.loading-history {
+  background: #e3f2fd;
+  color: #1976d2;
+}
+
+.error-history {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.history-summary {
+  background: linear-gradient(135deg, #e8f5e8, #f1f8e9);
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 25px;
+  border-left: 4px solid #4caf50;
+}
+
+.summary-cards {
+  display: flex;
+  gap: 30px;
+  justify-content: center;
+}
+
+.summary-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.summary-number {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #2e7d32;
+  line-height: 1;
+}
+
+.summary-label {
+  font-size: 0.9rem;
+  color: #558b2f;
+  font-weight: 600;
+  margin-top: 5px;
+}
+
+.history-table-container {
+  overflow-x: auto;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  font-size: 0.9rem;
+}
+
+.history-table th {
+  background: linear-gradient(135deg, #37474f, #455a64);
+  color: white;
+  padding: 15px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.history-table td {
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  vertical-align: middle;
+}
+
+.history-row:hover {
+  background: #f8f9fa;
+}
+
+.history-row.success {
+  border-left: 4px solid #4caf50;
+}
+
+.history-row.empty {
+  border-left: 4px solid #ff9800;
+}
+
+.file-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 250px;
+}
+
+.filename-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.filename-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+  color: #37474f;
+}
+
+.file-status {
+  text-align: center;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.9rem;
+}
+
+.status-badge.success {
+  color: #2e7d32;
+}
+
+.status-badge.empty {
+  color: #f57c00;
+}
+
+.file-entries {
+  text-align: right;
+  font-weight: 600;
+  color: #1976d2;
+}
+
+.file-period {
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  color: #5d4037;
+}
+
+.file-temp {
+  text-align: right;
+  font-weight: 500;
+  color: #d32f2f;
+}
+
+.file-import {
+  font-size: 0.85rem;
+  color: #616161;
+}
+
+.file-size {
+  text-align: right;
+  font-size: 0.85rem;
+  color: #757575;
+}
+
+/* Responsive pour historique */
+@media (max-width: 768px) {
+  .history-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .btn-history-toggle,
+  .btn-refresh-history {
+    width: 100%;
+  }
+  
+  .summary-cards {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .history-table-container {
+    font-size: 0.8rem;
+  }
+  
+  .history-table th,
+  .history-table td {
+    padding: 8px 6px;
+  }
+  
+  .file-name {
+    max-width: 150px;
+  }
+}

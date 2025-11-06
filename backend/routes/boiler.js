@@ -35,4 +35,7 @@ router.post('/cron/schedule', boilerController.updateCronSchedule);
 router.post('/cron/start', boilerController.startCronJob);
 router.post('/cron/stop', boilerController.stopCronJob);
 
+// Historique des imports
+router.get('/import-history', boilerController.getImportHistory);
+
 module.exports = router;
