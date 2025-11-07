@@ -1,0 +1,744 @@
+const path = require('path');
+const fs = require('fs');
+
+function generateImprovedAutoImportService() {
+  const improvedServicePath = path.join(__dirname, 'backend', 'services', 'autoImportService-improved.js');
+  
+  const improvedCode = `const chokidar = require('chokidar');
+const cron = require('node-cron');
+const path = require('path');
+const fs = require('fs');
+const csv = require('csv-parser');
+const crypto = require('crypto');
+const BoilerData = require('../models/BoilerData');
+const GmailConfig = require('../models/GmailConfig');
+const GmailService = require('./gmailService');
+
+class AutoImportService {
+  constructor() {
+    this.watchPaths = [];
+    this.isWatching = false;
+    this.gmailService = new GmailService();
+    this.gmailInitialized = false;
+    
+    // Stats améliorées
+    this.stats = {
+      filesProcessed: 0,
+      errors: [],
+      lastRun: null,
+      totalFiles: 0,
+      successfulFiles: 0,
+      duplicatesSkipped: 0,
+      totalImported: 0,
+      lastProcessed: null
+    };
+    
+    this.config = {
+      autoImport: false,
+      watchFolders: [],
+      emailSettings: {
+        enabled: false,
+        downloadPath: path.join(process.cwd(), 'auto-downloads')
+      },
+      cronSchedule: '0 8 * * *', // Tous les jours à 8h
+      filePattern: /touch_\\d{8}\\.csv$/i,
+      archiveProcessedFiles: true,
+      preventDuplicates: true, // NOUVEAU: Prévention des doublons
+      maxFileAge: 30 // NOUVEAU: Age max des fichiers à traiter (jours)
+    };
+    
+    // Créer le dossier de téléchargement automatique
+    if (!fs.existsSync(this.config.emailSettings.downloadPath)) {
+      fs.mkdirSync(this.config.emailSettings.downloadPath, { recursive: true });
+    }
+    
+    // Créer le dossier d'archives
+    const archiveDir = path.join(this.config.emailSettings.downloadPath, 'processed');
+    if (!fs.existsSync(archiveDir)) {
+      fs.mkdirSync(archiveDir, { recursive: true });
+    }
+    
+    this.config.gmail = null;
+  }
+
+  // NOUVEAU: Générer un hash pour identifier les fichiers
+  generateFileHash(filePath) {
+    try {
+      const fileBuffer = fs.readFileSync(filePath);
+      return crypto.createHash('md5').update(fileBuffer).digest('hex');
+    } catch (error) {
+      console.error('Erreur génération hash:', error);
+      return null;
+    }
+  }
+
+  // NOUVEAU: Vérifier si un fichier a déjà été traité
+  async isFileAlreadyProcessed(filename, fileHash = null, filePath = null) {
+    try {
+      // Vérification par nom de fichier
+      const existingByName = await BoilerData.findOne({ filename });
+      
+      if (!existingByName) {
+        return { processed: false, reason: 'Nouveau fichier' };
+      }
+      
+      // Vérification par hash si disponible
+      if (fileHash && filePath) {
+        const existingByHash = await BoilerData.findOne({ 
+          filename, 
+          fileHash: fileHash 
+        });
+        
+        if (existingByHash) {
+          return { 
+            processed: true, 
+            reason: 'Hash identique - contenu déjà traité',
+            lastImport: existingByHash.importDate 
+          };
+        }
+        
+        // Même nom mais hash différent = nouveau contenu
+        console.log(\`📝 Fichier \${filename} modifié (hash différent), re-traitement nécessaire\`);
+        return { processed: false, reason: 'Contenu modifié' };
+      }
+      
+      // Vérification par date de modification du fichier
+      if (filePath && fs.existsSync(filePath)) {
+        const fileStats = fs.statSync(filePath);
+        const fileModTime = fileStats.mtime;
+        
+        if (existingByName.importDate > fileModTime) {
+          return { 
+            processed: true, 
+            reason: 'Fichier plus ancien que le dernier import',
+            lastImport: existingByName.importDate 
+          };
+        }
+      }
+      
+      return { 
+        processed: false, 
+        reason: 'Fichier potentiellement mis à jour' 
+      };
+      
+    } catch (error) {
+      console.error('Erreur vérification fichier:', error);
+      return { processed: false, reason: 'Erreur de vérification' };
+    }
+  }
+
+  // Fonction d'import améliorée avec prévention des doublons
+  async importCSVFile(filePath, filename) {
+    const startTime = new Date();
+    const results = [];
+    let lineCount = 0;
+    let skippedLines = 0;
+
+    try {
+      // NOUVEAU: Vérifier si le fichier a déjà été traité
+      if (this.config.preventDuplicates) {
+        const fileHash = this.generateFileHash(filePath);
+        const processStatus = await this.isFileAlreadyProcessed(filename, fileHash, filePath);
+        
+        if (processStatus.processed) {
+          console.log(\`⚠️  Fichier \${filename} déjà traité: \${processStatus.reason}\`);
+          if (processStatus.lastImport) {
+            console.log(\`   Dernier import: \${processStatus.lastImport.toLocaleString()}\`);
+          }
+          
+          this.stats.duplicatesSkipped++;
+          return {
+            success: true,
+            message: \`Fichier \${filename} ignoré (déjà traité)\`,
+            linesProcessed: 0,
+            validEntries: 0,
+            skipped: true,
+            reason: processStatus.reason
+          };
+        }
+        
+        console.log(\`✅ Fichier \${filename} validé pour traitement: \${processStatus.reason}\`);
+      }
+
+      // NOUVEAU: Vérifier l'âge du fichier
+      const fileStats = fs.statSync(filePath);
+      const daysSinceModified = (Date.now() - fileStats.mtime) / (1000 * 60 * 60 * 24);
+      
+      if (daysSinceModified > this.config.maxFileAge) {
+        console.log(\`⚠️  Fichier \${filename} trop ancien (\${Math.round(daysSinceModified)} jours)\`);
+        return {
+          success: false,
+          message: \`Fichier \${filename} trop ancien pour être traité\`,
+          linesProcessed: 0,
+          validEntries: 0,
+          skipped: true,
+          reason: 'Fichier trop ancien'
+        };
+      }
+
+      // Traitement du CSV
+      await new Promise((resolve, reject) => {
+        fs.createReadStream(filePath, { encoding: 'latin1' })
+          .pipe(csv({ separator: ';' }))
+          .on('data', (data) => {
+            lineCount++;
+            
+            try {
+              // La colonne s'appelle 'Datum ' avec un espace à la fin
+              const datumValue = data['Datum '] || data.Datum;
+              const [day, month, year] = datumValue?.split('.') || [];
+              
+              // Vérifier que les composants de la date existent
+              if (!day || !month || !year) {
+                skippedLines++;
+                return;
+              }
+              
+              const dateStr = \`\${year}-\${month.padStart(2, '0')}-\${day.padStart(2, '0')}\`;
+              const date = new Date(dateStr);
+              
+              if (isNaN(date.getTime())) {
+                skippedLines++;
+                return;
+              }
+
+              const boilerEntry = {
+                date: date,
+                time: (data['Zeit '] || data.Zeit)?.trim() || '',
+                outsideTemp: parseFloat((data['AT [°C]'] || data['AT [°C] '])?.replace(',', '.')) || 0,
+                outsideTempActive: parseFloat((data['ATakt [°C]'] || data['ATakt [°C] '])?.replace(',', '.')) || 0,
+                heatingFlowTemp: parseFloat((data['HK1 VL Ist[°C]'] || data['HK1 VL Ist[°C] '])?.replace(',', '.')) || 0,
+                heatingFlowTempTarget: parseFloat((data['HK1 VL Soll[°C]'] || data['HK1 VL Soll[°C] '])?.replace(',', '.')) || 0,
+                boilerTemp: parseFloat((data['PE1 KT[°C]'] || data['PE1 KT[°C] '])?.replace(',', '.')) || 0,
+                boilerTempTarget: parseFloat((data['PE1 KT_SOLL[°C]'] || data['PE1 KT_SOLL[°C] '])?.replace(',', '.')) || 0,
+                modulation: parseFloat((data['PE1 Modulation[%]'] || data['PE1 Modulation[%] '])?.replace(',', '.')) || 0,
+                fanSpeed: parseFloat((data['PE1 Luefterdrehzahl[%]'] || data['PE1 Luefterdrehzahl[%] '])?.replace(',', '.')) || 0,
+                runtime: parseFloat((data['PE1 Runtime[h]'] || data['PE1 Runtime[h] '])?.replace(',', '.')) || 0,
+                status: parseInt(data['PE1 Status'] || data['PE1 Status ']) || 0,
+                hotWaterInTemp: parseFloat((data['WW1 EinT Ist[°C]'] || data['WW1 EinT Ist[°C] '])?.replace(',', '.')) || 0,
+                hotWaterOutTemp: parseFloat((data['WW1 AusT Ist[°C]'] || data['WW1 AusT Ist[°C] '])?.replace(',', '.')) || 0,
+                filename: filename,
+                importDate: startTime, // NOUVEAU: Date d'import
+                fileHash: this.generateFileHash(filePath) // NOUVEAU: Hash du fichier
+              };
+
+              if (boilerEntry.runtime > 0) {
+                results.push(boilerEntry);
+              } else {
+                skippedLines++;
+              }
+            } catch (error) {
+              console.error(\`Erreur ligne \${lineCount}:\`, error);
+              skippedLines++;
+            }
+          })
+          .on('end', resolve)
+          .on('error', reject);
+      });
+
+      // AMÉLIORATION: Supprimer seulement les données existantes du même fichier
+      // avec une meilleure gestion des erreurs
+      const existingCount = await BoilerData.countDocuments({ filename });
+      if (existingCount > 0) {
+        console.log(\`🗑️  Suppression de \${existingCount} entrées existantes pour \${filename}\`);
+        const deleteResult = await BoilerData.deleteMany({ filename });
+        console.log(\`✅ \${deleteResult.deletedCount} entrées supprimées\`);
+      }
+
+      // Insérer les nouvelles données avec gestion d'erreur améliorée
+      if (results.length > 0) {
+        try {
+          await BoilerData.insertMany(results, { 
+            ordered: false, // Continue même si certains documents échouent
+            writeConcern: { w: 'majority' } // Assure la persistence
+          });
+          console.log(\`✅ \${results.length} nouvelles entrées insérées pour \${filename}\`);
+        } catch (insertError) {
+          // En cas d'erreur d'insertion partielle
+          if (insertError.writeErrors) {
+            const successCount = results.length - insertError.writeErrors.length;
+            console.log(\`⚠️  Insertion partielle: \${successCount}/\${results.length} entrées insérées\`);
+          } else {
+            throw insertError;
+          }
+        }
+      }
+
+      // Mettre à jour les statistiques
+      this.stats.filesProcessed++;
+      this.stats.totalImported += results.length;
+      this.stats.lastProcessed = startTime;
+
+      const processingTime = (Date.now() - startTime.getTime()) / 1000;
+
+      return {
+        success: true,
+        message: \`\${results.length} entrées importées depuis \${filename}\`,
+        linesProcessed: lineCount,
+        validEntries: results.length,
+        skippedLines: skippedLines,
+        processingTimeSeconds: processingTime,
+        skipped: false
+      };
+
+    } catch (error) {
+      console.error(\`❌ Erreur import \${filename}:\`, error);
+      
+      // Ajouter à la liste des erreurs
+      this.stats.errors.push({
+        file: filename,
+        error: error.message,
+        timestamp: startTime,
+        stack: error.stack
+      });
+      
+      throw error;
+    }
+  }
+
+  // NOUVEAU: Archiver un fichier traité
+  async archiveFile(filePath) {
+    try {
+      if (!this.config.archiveProcessedFiles) return;
+      
+      const filename = path.basename(filePath);
+      const archiveDir = path.join(path.dirname(filePath), 'processed');
+      
+      if (!fs.existsSync(archiveDir)) {
+        fs.mkdirSync(archiveDir, { recursive: true });
+      }
+      
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const archivedPath = path.join(archiveDir, \`\${timestamp}_\${filename}\`);
+      
+      fs.renameSync(filePath, archivedPath);
+      console.log(\`📦 Fichier archivé: \${archivedPath}\`);
+      
+    } catch (error) {
+      console.error('Erreur archivage:', error);
+    }
+  }
+
+  // NOUVEAU: Nettoyer les anciennes erreurs des stats
+  cleanupStats() {
+    const maxErrors = 100;
+    const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 jours en ms
+    const now = Date.now();
+    
+    this.stats.errors = this.stats.errors
+      .filter(error => (now - error.timestamp.getTime()) < maxAge)
+      .slice(-maxErrors);
+  }
+
+  // NOUVEAU: Obtenir un rapport détaillé
+  getDetailedStatus() {
+    this.cleanupStats();
+    
+    return {
+      service: {
+        isWatching: this.isWatching,
+        cronActive: this.cronJob && this.cronJob.running,
+        gmailInitialized: this.gmailInitialized
+      },
+      stats: {
+        ...this.stats,
+        errorRate: this.stats.filesProcessed > 0 ? 
+          (this.stats.errors.length / this.stats.filesProcessed * 100).toFixed(2) + '%' : '0%',
+        duplicateRate: this.stats.filesProcessed > 0 ? 
+          (this.stats.duplicatesSkipped / (this.stats.filesProcessed + this.stats.duplicatesSkipped) * 100).toFixed(2) + '%' : '0%'
+      },
+      config: {
+        ...this.config,
+        // Masquer les infos sensibles
+        gmail: this.config.gmail ? {
+          enabled: this.config.gmail.enabled,
+          configured: !!this.config.gmail.sender
+        } : null
+      },
+      recentErrors: this.stats.errors.slice(-5)
+    };
+  }
+
+  // Charger la configuration Gmail depuis la base de données
+  async loadGmailConfig() {
+    try {
+      const gmailConfig = await GmailConfig.getConfig();
+      this.config.gmail = gmailConfig.toObject();
+      return gmailConfig;
+    } catch (error) {
+      console.error('❌ Erreur chargement config Gmail:', error);
+      this.config.gmail = {
+        enabled: false,
+        sender: '',
+        subject: 'okofen',
+        maxResults: 10,
+        daysBack: 7
+      };
+      return null;
+    }
+  }
+
+  // Initialiser le service Gmail
+  async initializeGmail() {
+    try {
+      console.log('🔧 Initialisation du service Gmail...');
+      
+      await this.loadGmailConfig();
+      
+      const result = await this.gmailService.initialize();
+      
+      if (result.configured) {
+        this.gmailInitialized = true;
+        console.log('✅ Service Gmail prêt');
+        return result;
+      } else {
+        console.log('⚠️ Service Gmail non configuré:', result.error);
+        return result;
+      }
+    } catch (error) {
+      console.error('❌ Erreur initialisation Gmail:', error);
+      return { 
+        configured: false, 
+        error: error.message 
+      };
+    }
+  }
+
+  // Configurer Gmail et sauvegarder en base
+  async updateGmailConfig(config) {
+    try {
+      const updatedConfig = await GmailConfig.updateConfig(config);
+      this.config.gmail = updatedConfig.toObject();
+      
+      console.log('📧 Configuration Gmail mise à jour et sauvegardée');
+      return updatedConfig;
+    } catch (error) {
+      console.error('❌ Erreur mise à jour config Gmail:', error);
+      throw error;
+    }
+  }
+
+  // Traitement complet des emails Okofen (amélioré)
+  async processGmailEmails() {
+    if (!this.gmailInitialized) {
+      const initResult = await this.initializeGmail();
+      if (!initResult.configured) {
+        return {
+          success: false,
+          error: 'Service Gmail non configuré',
+          details: initResult
+        };
+      }
+    }
+
+    try {
+      console.log('📧 Récupération des emails Okofen depuis Gmail...');
+      
+      const autoImportService = this;
+      const processCallback = async (filePath, metadata) => {
+        try {
+          console.log(\`🔄 Traitement automatique: \${path.basename(filePath)}\`);
+          const result = await autoImportService.importCSVFile(filePath, path.basename(filePath));
+          
+          if (result.success && !result.skipped) {
+            console.log(\`✅ Import réussi: \${result.validEntries} entrées\`);
+            
+            if (autoImportService.config.archiveProcessedFiles) {
+              await autoImportService.archiveFile(filePath);
+            }
+          } else if (result.skipped) {
+            console.log(\`⚠️  Fichier ignoré: \${result.reason}\`);
+          }
+          
+          return result;
+        } catch (error) {
+          console.error(\`❌ Erreur traitement \${filePath}:\`, error);
+          autoImportService.stats.errors.push({
+            file: path.basename(filePath),
+            error: error.message,
+            timestamp: new Date(),
+            type: 'gmail_processing'
+          });
+          throw error;
+        }
+      };
+
+      const result = await this.gmailService.processOkofenEmails({
+        downloadPath: this.config.emailSettings.downloadPath,
+        processCallback: processCallback,
+        markAsProcessed: true,
+        labelProcessed: 'Okofen-Traité',
+        sender: this.config.gmail.sender,
+        subject: this.config.gmail.subject,
+        maxResults: this.config.gmail.maxResults,
+        daysBack: this.config.gmail.daysBack
+      });
+
+      console.log(\`📊 Traitement Gmail terminé: \${result.downloaded} téléchargés, \${result.processed} traités\`);
+      
+      return {
+        success: true,
+        message: \`\${result.downloaded} fichiers téléchargés et \${result.processed} traités\`,
+        details: result
+      };
+
+    } catch (error) {
+      console.error('❌ Erreur traitement emails Gmail:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Démarrer la surveillance des dossiers (amélioré)
+  startWatching() {
+    if (this.isWatching) return;
+
+    console.log('🔍 Démarrage de la surveillance automatique des fichiers CSV...');
+    
+    const rootWatcher = chokidar.watch('*.csv', {
+      cwd: process.cwd(),
+      ignored: /(^|[\\/\\\\])\\../, 
+      persistent: true
+    });
+
+    const downloadWatcher = chokidar.watch('*.csv', {
+      cwd: this.config.emailSettings.downloadPath,
+      ignored: /(^|[\\/\\\\])\\../,
+      persistent: true
+    });
+
+    const handleNewFile = async (filePath, watchPath) => {
+      try {
+        const fullPath = path.resolve(watchPath, filePath);
+        const filename = path.basename(fullPath);
+        
+        console.log(\`📁 Nouveau fichier CSV détecté: \${filename}\`);
+        
+        if (!this.config.filePattern.test(filename)) {
+          console.log(\`⚠️ Fichier ignoré (pattern non reconnu): \${filename}\`);
+          return;
+        }
+
+        // Attendre que le fichier soit complètement écrit
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        const result = await this.importCSVFile(fullPath, filename);
+        
+        if (result.success && !result.skipped) {
+          console.log(\`✅ Import automatique réussi: \${result.message}\`);
+          
+          if (this.config.archiveProcessedFiles) {
+            await this.archiveFile(fullPath);
+          }
+        } else if (result.skipped) {
+          console.log(\`⚠️  Fichier ignoré: \${result.reason}\`);
+        }
+
+      } catch (error) {
+        console.error(\`❌ Erreur import automatique \${filePath}:\`, error);
+        this.stats.errors.push({
+          file: path.basename(filePath),
+          error: error.message,
+          timestamp: new Date(),
+          type: 'file_watch'
+        });
+      }
+    };
+
+    rootWatcher.on('add', (filePath) => handleNewFile(filePath, process.cwd()));
+    downloadWatcher.on('add', (filePath) => handleNewFile(filePath, this.config.emailSettings.downloadPath));
+
+    this.rootWatcher = rootWatcher;
+    this.downloadWatcher = downloadWatcher;
+    this.isWatching = true;
+
+    console.log('✅ Surveillance active sur:');
+    console.log(\`   - Dossier racine: \${process.cwd()}\`);
+    console.log(\`   - Dossier téléchargements: \${this.config.emailSettings.downloadPath}\`);
+  }
+
+  // Arrêter la surveillance
+  stopWatching() {
+    if (!this.isWatching) return;
+
+    console.log('🛑 Arrêt de la surveillance automatique...');
+    
+    if (this.rootWatcher) {
+      this.rootWatcher.close();
+      this.rootWatcher = null;
+    }
+    
+    if (this.downloadWatcher) {
+      this.downloadWatcher.close();
+      this.downloadWatcher = null;
+    }
+
+    this.isWatching = false;
+    console.log('✅ Surveillance arrêtée');
+  }
+
+  // Démarrer la tâche cron pour vérification périodique
+  startCronJob() {
+    if (this.cronJob) return;
+
+    console.log(\`⏰ Planification des vérifications automatiques: \${this.config.cronSchedule}\`);
+    
+    this.cronJob = cron.schedule(this.config.cronSchedule, async () => {
+      console.log('🕒 Vérification automatique programmée...');
+      
+      await this.checkForNewFiles();
+      
+      if (this.config.gmail && this.config.gmail.enabled) {
+        console.log('📧 Vérification Gmail...');
+        await this.processGmailEmails();
+      }
+      
+      // Nettoyer les stats anciennes
+      this.cleanupStats();
+    }, {
+      scheduled: false,
+      timezone: "Europe/Paris"
+    });
+
+    this.cronJob.start();
+    console.log('✅ Tâche cron démarrée');
+  }
+
+  // Arrêter la tâche cron
+  stopCronJob() {
+    if (this.cronJob) {
+      this.cronJob.stop();
+      this.cronJob.destroy();
+      this.cronJob = null;
+      console.log('✅ Tâche cron arrêtée');
+    }
+  }
+
+  // Vérifier manuellement les nouveaux fichiers (amélioré)
+  async checkForNewFiles() {
+    try {
+      const folders = [
+        process.cwd(),
+        this.config.emailSettings.downloadPath
+      ];
+
+      let totalProcessed = 0;
+
+      for (const folder of folders) {
+        if (!fs.existsSync(folder)) continue;
+
+        const files = fs.readdirSync(folder)
+          .filter(file => this.config.filePattern.test(file))
+          .map(file => ({
+            name: file,
+            path: path.join(folder, file),
+            mtime: fs.statSync(path.join(folder, file)).mtime
+          }))
+          .sort((a, b) => b.mtime - a.mtime);
+
+        console.log(\`📂 Trouvé \${files.length} fichiers CSV dans \${folder}\`);
+
+        for (const file of files) {
+          try {
+            console.log(\`🔄 Vérification du fichier: \${file.name}\`);
+            const result = await this.importCSVFile(file.path, file.name);
+            
+            if (result.success && !result.skipped) {
+              totalProcessed++;
+              console.log(\`✅ Traité: \${result.validEntries} entrées\`);
+            } else if (result.skipped) {
+              console.log(\`⚠️  Ignoré: \${result.reason}\`);
+            }
+            
+          } catch (error) {
+            console.error(\`❌ Erreur fichier \${file.name}:\`, error);
+          }
+        }
+      }
+
+      console.log(\`📊 Vérification terminée: \${totalProcessed} fichiers traités\`);
+      
+    } catch (error) {
+      console.error('❌ Erreur vérification fichiers:', error);
+    }
+  }
+
+  // Obtenir le statut du service (version simple)
+  getStatus() {
+    return {
+      isWatching: this.isWatching,
+      cronActive: this.cronJob && this.cronJob.running,
+      gmailInitialized: this.gmailInitialized,
+      stats: {
+        filesProcessed: this.stats.filesProcessed,
+        totalImported: this.stats.totalImported,
+        duplicatesSkipped: this.stats.duplicatesSkipped,
+        recentErrors: this.stats.errors.length
+      }
+    };
+  }
+
+  // Mettre à jour la configuration
+  updateConfig(newConfig) {
+    this.config = { ...this.config, ...newConfig };
+    
+    if (newConfig.autoImport && !this.isWatching) {
+      this.startWatching();
+      this.startCronJob();
+    } else if (!newConfig.autoImport && this.isWatching) {
+      this.stopWatching();
+      this.stopCronJob();
+    }
+    
+    console.log('⚙️  Configuration mise à jour:', Object.keys(newConfig));
+  }
+}
+
+// Instance singleton
+const autoImportService = new AutoImportService();
+
+module.exports = autoImportService;`;
+
+  return improvedCode;
+}
+
+// Créer le fichier amélioré
+console.log('🔧 GÉNÉRATION DU SERVICE D\'IMPORT AMÉLIORÉ');
+console.log('============================================');
+
+const improvedCode = generateImprovedAutoImportService();
+const outputPath = path.join(__dirname, 'backend', 'services', 'autoImportService-improved.js');
+
+try {
+  fs.writeFileSync(outputPath, improvedCode, 'utf8');
+  console.log(\`✅ Service amélioré créé: \${outputPath}\`);
+  
+  console.log('\\n🎯 PRINCIPALES AMÉLIORATIONS:');
+  console.log('==============================');
+  console.log('1. ✅ Détection des doublons par hash de fichier');
+  console.log('2. ✅ Vérification de l\'âge des fichiers');
+  console.log('3. ✅ Statistiques détaillées avec taux d\'erreur');
+  console.log('4. ✅ Archivage automatique des fichiers traités');
+  console.log('5. ✅ Gestion d\'erreurs améliorée');
+  console.log('6. ✅ Nettoyage automatique des anciennes erreurs');
+  console.log('7. ✅ Insertion avec writeConcern pour la persistence');
+  console.log('8. ✅ Horodatage des imports pour le suivi');
+  
+  console.log('\\n📋 PROCHAINES ÉTAPES:');
+  console.log('======================');
+  console.log('1. 🔍 Analyser d\\'abord: node analyze-mongodb-space.js');
+  console.log('2. 🧹 Nettoyer les doublons: node cleanup-mongodb.js --duplicates-only');
+  console.log('3. 🔄 Remplacer l\\'ancien service par le nouveau');
+  console.log('4. 🧪 Tester avec un petit fichier CSV');
+  console.log('5. 📊 Surveiller les logs pour s\\'assurer du bon fonctionnement');
+  
+  console.log('\\n⚠️  SAUVEGARDE RECOMMANDÉE:');
+  console.log('============================');
+  console.log('Avant de remplacer le service existant, sauvegardez:');
+  console.log(\`cp \${path.join(__dirname, 'backend', 'services', 'autoImportService.js')} autoImportService-backup.js\`);
+  
+} catch (error) {
+  console.error('❌ Erreur création du fichier:', error);
+}

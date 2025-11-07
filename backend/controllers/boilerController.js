@@ -690,7 +690,7 @@ exports.getImportHistory = async (req, res) => {
         }
       },
       {
-        $sort: { firstImport: -1 }
+        $sort: { filename: -1 }
       }
     ]);
 
