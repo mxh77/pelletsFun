@@ -862,6 +862,130 @@ button:disabled {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
+.btn-manual-import {
+  background: linear-gradient(135deg, #ff6b35, #f7931e);
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+  min-width: 220px;
+  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.2);
+}
+
+.btn-manual-import:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
+  background: linear-gradient(135deg, #f7931e, #ff6b35);
+}
+
+.btn-manual-import:active {
+  transform: translateY(0);
+}
+
+/* Résultats import manuel */
+.manual-import-details {
+  background: #f8f9fa;
+  border-radius: 12px;
+  padding: 20px;
+  border-left: 4px solid #ff6b35;
+  margin-top: 15px;
+}
+
+.manual-import-details h5 {
+  color: #495057;
+  margin: 0 0 20px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.import-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.import-stat-card {
+  background: linear-gradient(135deg, #ff6b35, #f7931e);
+  color: white;
+  padding: 15px;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 3px 10px rgba(255, 107, 53, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.import-stat-card .stat-number {
+  font-size: 1.8rem;
+  font-weight: bold;
+  line-height: 1;
+  margin-bottom: 5px;
+}
+
+.import-stat-card .stat-label {
+  font-size: 0.85rem;
+  opacity: 0.9;
+  font-weight: 500;
+}
+
+.service-stats {
+  background: white;
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 15px;
+  border: 1px solid #e9ecef;
+}
+
+.service-stats h6 {
+  color: #495057;
+  margin: 0 0 10px 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.service-stats ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.service-stats li {
+  padding: 5px 0;
+  color: #6c757d;
+  font-size: 0.9rem;
+  border-bottom: 1px solid #f8f9fa;
+}
+
+.service-stats li:last-child {
+  border-bottom: none;
+}
+
+.gmail-import-details {
+  background: #e3f2fd;
+  border-radius: 8px;
+  padding: 15px;
+  border-left: 3px solid #2196f3;
+}
+
+.gmail-import-details h6 {
+  color: #1565c0;
+  margin: 0 0 8px 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.gmail-import-details p {
+  margin: 0;
+  color: #1976d2;
+  font-size: 0.9rem;
+}
+
 .cron-info {
   background: white;
   padding: 20px;
@@ -1230,5 +1354,25 @@ button:disabled {
   
   .file-name {
     max-width: 150px;
+  }
+  
+  /* Responsive pour import manuel */
+  .btn-manual-import {
+    min-width: auto;
+    width: 100%;
+    font-size: 0.9rem;
+  }
+  
+  .import-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  
+  .import-stat-card .stat-number {
+    font-size: 1.5rem;
+  }
+  
+  .import-stat-card .stat-label {
+    font-size: 0.8rem;
   }
 }

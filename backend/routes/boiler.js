@@ -35,6 +35,10 @@ router.post('/cron/schedule', boilerController.updateCronSchedule);
 router.post('/cron/start', boilerController.startCronJob);
 router.post('/cron/stop', boilerController.stopCronJob);
 
+// Import manuel
+router.post('/import/manual-trigger', boilerController.triggerManualImport);
+router.get('/import/status', boilerController.getImportStatus);
+
 // Historique des imports
 router.get('/import-history', boilerController.getImportHistory);
 

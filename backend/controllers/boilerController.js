@@ -630,6 +630,128 @@ exports.stopCronJob = async (req, res) => {
   }
 };
 
+// Déclencher manuellement l'import des emails
+exports.triggerManualImport = async (req, res) => {
+  try {
+    console.log('🔄 Déclenchement manuel de l\'import demandé');
+    
+    // Importer le service d'auto-import
+    const autoImportService = require('../services/autoImportService');
+    
+    // Vérifier si le service est configuré
+    const gmailStatus = await autoImportService.initializeGmail();
+    if (!gmailStatus.configured) {
+      return res.status(400).json({
+        success: false,
+        error: 'Service Gmail non configuré',
+        details: gmailStatus.error
+      });
+    }
+    
+    // Obtenir les statistiques avant l'import
+    const statsBefore = await BoilerData.countDocuments();
+    const filesBefore = await BoilerData.distinct('filename');
+    
+    console.log(`📊 État avant import: ${statsBefore} entrées, ${filesBefore.length} fichiers`);
+    
+    // Déclencher l'import des emails
+    const importResult = await autoImportService.processGmailEmails();
+    
+    if (!importResult.success) {
+      return res.status(500).json({
+        success: false,
+        error: 'Erreur lors de l\'import',
+        details: importResult.error
+      });
+    }
+    
+    // Obtenir les statistiques après l'import
+    const statsAfter = await BoilerData.countDocuments();
+    const filesAfter = await BoilerData.distinct('filename');
+    
+    const newEntries = statsAfter - statsBefore;
+    const newFiles = filesAfter.length - filesBefore.length;
+    
+    console.log(`📊 État après import: ${statsAfter} entrées, ${filesAfter.length} fichiers`);
+    console.log(`✅ Import terminé: +${newEntries} entrées, +${newFiles} fichiers`);
+    
+    // Obtenir le statut du service pour les détails
+    const serviceStatus = autoImportService.getDetailedStatus();
+    
+    res.json({
+      success: true,
+      message: `Import manuel terminé avec succès`,
+      results: {
+        entriesBefore: statsBefore,
+        entriesAfter: statsAfter,
+        newEntries: newEntries,
+        filesBefore: filesBefore.length,
+        filesAfter: filesAfter.length,
+        newFiles: newFiles,
+        importDetails: importResult.details || {},
+        serviceStats: {
+          filesProcessed: serviceStatus.stats.filesProcessed,
+          duplicatesSkipped: serviceStatus.stats.duplicatesSkipped,
+          totalImported: serviceStatus.stats.totalImported,
+          errorRate: serviceStatus.stats.errorRate
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur import manuel:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+};
+
+// Obtenir le statut du service d'import
+exports.getImportStatus = async (req, res) => {
+  try {
+    const autoImportService = require('../services/autoImportService');
+    
+    // Obtenir le statut détaillé
+    const detailedStatus = autoImportService.getDetailedStatus();
+    
+    // Vérifier la configuration Gmail
+    const gmailStatus = await autoImportService.initializeGmail();
+    
+    // Statistiques de la base de données
+    const dbStats = {
+      totalEntries: await BoilerData.countDocuments(),
+      totalFiles: (await BoilerData.distinct('filename')).length,
+      lastEntry: await BoilerData.findOne().sort({ createdAt: -1 }),
+      oldestEntry: await BoilerData.findOne().sort({ createdAt: 1 })
+    };
+    
+    res.json({
+      success: true,
+      service: {
+        isWatching: detailedStatus.service.isWatching,
+        cronActive: detailedStatus.service.cronActive,
+        gmailConfigured: gmailStatus.configured,
+        gmailError: gmailStatus.error || null
+      },
+      stats: detailedStatus.stats,
+      database: dbStats,
+      config: {
+        emailSettings: detailedStatus.config.gmail || {},
+        preventDuplicates: detailedStatus.config.preventDuplicates || true
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur récupération statut:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
 exports.getImportHistory = async (req, res) => {
   try {
     // Récupérer les fichiers uniques avec leurs statistiques

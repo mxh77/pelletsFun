@@ -58,6 +58,49 @@ const BoilerManager = () => {
     }
   };
 
+  const triggerManualImport = async () => {
+    setLoading(true);
+    try {
+      const response = await axios.post(`${API_URL}/api/boiler/import/manual-trigger`);
+      
+      const result = response.data;
+      
+      if (result.success) {
+        setImportResult({
+          success: true,
+          message: result.message,
+          details: result.results,
+          manualImport: true
+        });
+        
+        // Recharger les statistiques après l'import
+        await loadStats();
+        await loadImportHistory();
+      } else {
+        setImportResult({
+          error: result.error || 'Erreur lors de l\'import manuel',
+          details: result.details
+        });
+      }
+    } catch (error) {
+      console.error('Erreur import manuel:', error);
+      setImportResult({ 
+        error: error.response?.data?.error || 'Erreur lors du déclenchement de l\'import manuel'
+      });
+    }
+    setLoading(false);
+  };
+
+  const getDetailedImportStatus = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/boiler/import/status`);
+      return response.data;
+    } catch (error) {
+      console.error('Erreur récupération statut import:', error);
+      return null;
+    }
+  };
+
   const updateCronSchedule = async () => {
     setLoading(true);
     try {
@@ -424,14 +467,68 @@ const BoilerManager = () => {
             ) : (
               <div>
                 <p>✅ {importResult.message}</p>
-                {importResult.totalEntries && (
-                  <p>Total entrées importées: {importResult.totalEntries}</p>
+                
+                {/* Résultats d'import manuel */}
+                {importResult.manualImport && importResult.details && (
+                  <div className="manual-import-details">
+                    <h5>📊 Résultats de l'Import Manuel :</h5>
+                    
+                    <div className="import-stats-grid">
+                      <div className="import-stat-card">
+                        <span className="stat-number">{importResult.details.newEntries}</span>
+                        <span className="stat-label">Nouvelles Entrées</span>
+                      </div>
+                      <div className="import-stat-card">
+                        <span className="stat-number">{importResult.details.newFiles}</span>
+                        <span className="stat-label">Nouveaux Fichiers</span>
+                      </div>
+                      <div className="import-stat-card">
+                        <span className="stat-number">{importResult.details.entriesAfter.toLocaleString()}</span>
+                        <span className="stat-label">Total Entrées</span>
+                      </div>
+                      <div className="import-stat-card">
+                        <span className="stat-number">{importResult.details.filesAfter}</span>
+                        <span className="stat-label">Total Fichiers</span>
+                      </div>
+                    </div>
+                    
+                    {importResult.details.serviceStats && (
+                      <div className="service-stats">
+                        <h6>🔧 Statistiques du Service :</h6>
+                        <ul>
+                          <li>📁 Fichiers traités: {importResult.details.serviceStats.filesProcessed}</li>
+                          <li>⚠️ Doublons ignorés: {importResult.details.serviceStats.duplicatesSkipped}</li>
+                          <li>📊 Total importé: {importResult.details.serviceStats.totalImported}</li>
+                          <li>📈 Taux d'erreur: {importResult.details.serviceStats.errorRate}</li>
+                        </ul>
+                      </div>
+                    )}
+                    
+                    {importResult.details.importDetails && (
+                      <div className="gmail-import-details">
+                        <h6>📧 Détails Gmail :</h6>
+                        <p>
+                          {importResult.details.importDetails.downloaded || 0} fichiers téléchargés, 
+                          {importResult.details.importDetails.processed || 0} fichiers traités
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 )}
-                {importResult.linesProcessed && (
-                  <p>Lignes traitées: {importResult.linesProcessed}</p>
-                )}
-                {importResult.validEntries && (
-                  <p>Entrées valides: {importResult.validEntries}</p>
+                
+                {/* Résultats d'import de fichiers */}
+                {!importResult.manualImport && (
+                  <div>
+                    {importResult.totalEntries && (
+                      <p>Total entrées importées: {importResult.totalEntries}</p>
+                    )}
+                    {importResult.linesProcessed && (
+                      <p>Lignes traitées: {importResult.linesProcessed}</p>
+                    )}
+                    {importResult.validEntries && (
+                      <p>Entrées valides: {importResult.validEntries}</p>
+                    )}
+                  </div>
                 )}
                 
                 {/* Détails des imports multiples */}
@@ -512,6 +609,14 @@ const BoilerManager = () => {
               className={`btn-toggle-cron ${cronStatus?.isActive ? 'active' : 'inactive'}`}
             >
               {cronStatus?.isActive ? '⏸️ Arrêter' : '▶️ Démarrer'} Traitement Automatique
+            </button>
+            
+            <button 
+              onClick={triggerManualImport}
+              disabled={loading}
+              className="btn-manual-import"
+            >
+              🚀 Déclencher Import Maintenant
             </button>
           </div>
 

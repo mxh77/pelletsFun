@@ -51,6 +51,14 @@ Le système d'auto-import permet d'automatiser complètement l'importation des f
 3. 📊 Mise à jour instantanée des statistiques
 ```
 
+### Méthode 3: Import Manuel Gmail (🆕 Nouvelle Fonctionnalité)
+```
+1. 🚀 Cliquez sur "Déclencher Import Maintenant"
+2. 📧 Import automatique depuis Gmail avec mêmes paramètres que le cron
+3. 📊 Rapport détaillé avec statistiques complètes
+4. ✅ Contrôle manuel de l'automatisation
+```
+
 ## 📁 Structure des Fichiers
 
 ### Format Attendu
@@ -80,6 +88,18 @@ Utilisez **"Vérifier Nouveaux Fichiers"** pour :
 - Forcer une vérification immédiate
 - Tester le système après ajout de fichiers
 - Diagnostiquer les problèmes d'import
+
+### Import Manuel Gmail (🆕)
+Le bouton **"Déclencher Import Maintenant"** permet :
+- **🚀 Import immédiat** des emails Gmail selon les paramètres configurés
+- **📊 Rapport détaillé** avec statistiques avant/après import
+- **🔧 Test et dépannage** de la configuration Gmail
+- **⚡ Rattrapage** d'imports ratés ou panne système
+
+**Affichage des résultats :**
+- 📈 **Statistiques** : Nouvelles entrées, fichiers importés, totaux
+- 🛠️ **Service Stats** : Fichiers traités, doublons ignorés, taux d'erreur
+- 📧 **Gmail Details** : Fichiers téléchargés et traités depuis Gmail
 
 ## 📊 Utilisation des Données
 
