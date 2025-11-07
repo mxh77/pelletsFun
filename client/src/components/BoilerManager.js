@@ -18,6 +18,12 @@ const BoilerManager = () => {
     startDate: '',
     endDate: ''
   });
+  
+  // États pour l'import manuel avec période
+  const [manualImportPeriod, setManualImportPeriod] = useState({
+    dateFrom: '',
+    dateTo: ''
+  });
 
   const API_URL = process.env.REACT_APP_API_URL || '';
 
@@ -61,7 +67,16 @@ const BoilerManager = () => {
   const triggerManualImport = async () => {
     setLoading(true);
     try {
-      const response = await axios.post(`${API_URL}/api/boiler/import/manual-trigger`);
+      // Préparer les paramètres de période
+      const periodParams = {};
+      if (manualImportPeriod.dateFrom) {
+        periodParams.dateFrom = manualImportPeriod.dateFrom;
+      }
+      if (manualImportPeriod.dateTo) {
+        periodParams.dateTo = manualImportPeriod.dateTo;
+      }
+
+      const response = await axios.post(`${API_URL}/api/boiler/import/manual-trigger`, periodParams);
       
       const result = response.data;
       
@@ -610,6 +625,35 @@ const BoilerManager = () => {
             >
               {cronStatus?.isActive ? '⏸️ Arrêter' : '▶️ Démarrer'} Traitement Automatique
             </button>
+            
+            {/* Sélection de période pour l'import manuel */}
+            <div className="manual-import-period">
+              <h5>🗓️ Période de Recherche (Optionnel)</h5>
+              <div className="period-inputs">
+                <div className="date-input-group">
+                  <label>📅 Du :</label>
+                  <input 
+                    type="date"
+                    value={manualImportPeriod.dateFrom}
+                    onChange={(e) => setManualImportPeriod(prev => ({...prev, dateFrom: e.target.value}))}
+                    className="date-input"
+                  />
+                </div>
+                <div className="date-input-group">
+                  <label>📅 Au :</label>
+                  <input 
+                    type="date"
+                    value={manualImportPeriod.dateTo}
+                    onChange={(e) => setManualImportPeriod(prev => ({...prev, dateTo: e.target.value}))}
+                    className="date-input"
+                  />
+                </div>
+              </div>
+              <div className="period-help">
+                💡 <strong>Sans période :</strong> Utilise les paramètres Gmail configurés (jours en arrière)<br/>
+                💡 <strong>Avec période :</strong> Recherche uniquement dans la plage spécifiée
+              </div>
+            </div>
             
             <button 
               onClick={triggerManualImport}

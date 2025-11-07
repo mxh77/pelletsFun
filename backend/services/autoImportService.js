@@ -105,7 +105,7 @@ class AutoImportService {
   }
 
   // Traitement complet des emails Okofen
-  async processGmailEmails() {
+  async processGmailEmails(options = {}) {
     if (!this.gmailInitialized) {
       const initResult = await this.initializeGmail();
       if (!initResult.configured) {
@@ -119,6 +119,24 @@ class AutoImportService {
 
     try {
       console.log('📧 Récupération des emails Okofen depuis Gmail...');
+      
+      // Déterminer les paramètres de recherche
+      let searchParams;
+      if (options.period && (options.period.dateFrom || options.period.dateTo)) {
+        // Utiliser la période spécifiée
+        searchParams = {
+          dateFrom: options.period.dateFrom,
+          dateTo: options.period.dateTo
+        };
+        console.log('🗓️ Recherche avec période personnalisée:', searchParams);
+      } else {
+        // Utiliser les paramètres par défaut (daysBack)
+        searchParams = {
+          maxResults: this.config.gmail.maxResults,
+          daysBack: this.config.gmail.daysBack
+        };
+        console.log('🗓️ Recherche avec paramètres par défaut:', searchParams);
+      }
       
       // Lier le contexte pour éviter la perte de 'this'
       const autoImportService = this;
@@ -152,16 +170,18 @@ class AutoImportService {
         }
       };
 
-      const result = await this.gmailService.processOkofenEmails({
+      const gmailParams = {
         downloadPath: this.config.emailSettings.downloadPath,
         processCallback: processCallback,
         markAsProcessed: true,
         labelProcessed: 'Okofen-Traité',
         sender: this.config.gmail.sender,
         subject: this.config.gmail.subject,
-        maxResults: this.config.gmail.maxResults,
-        daysBack: this.config.gmail.daysBack
-      });
+        // Utiliser soit la période personnalisée, soit les paramètres par défaut
+        ...searchParams
+      };
+
+      const result = await this.gmailService.processOkofenEmails(gmailParams);
 
       console.log(`📊 Traitement Gmail terminé: ${result.downloaded} téléchargés, ${result.processed} traités`);
       

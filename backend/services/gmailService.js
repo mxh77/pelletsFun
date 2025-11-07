@@ -142,6 +142,8 @@ class GmailService {
       const {
         maxResults = 10,
         daysBack = 7,
+        dateFrom = null,
+        dateTo = null,
         sender = null,
         subject = 'okofen'
       } = options;
@@ -153,11 +155,26 @@ class GmailService {
         query += ` from:${sender}`;
       }
 
-      // Ajouter filtre de date
-      const dateBack = new Date();
-      dateBack.setDate(dateBack.getDate() - daysBack);
-      const dateStr = dateBack.toISOString().split('T')[0].replace(/-/g, '/');
-      query += ` after:${dateStr}`;
+      // Ajouter filtre de date - soit période personnalisée, soit daysBack
+      if (dateFrom || dateTo) {
+        console.log('🗓️ Utilisation période personnalisée:', { dateFrom, dateTo });
+        
+        if (dateFrom) {
+          const fromStr = dateFrom.toISOString().split('T')[0].replace(/-/g, '/');
+          query += ` after:${fromStr}`;
+        }
+        
+        if (dateTo) {
+          const toStr = dateTo.toISOString().split('T')[0].replace(/-/g, '/');
+          query += ` before:${toStr}`;
+        }
+      } else {
+        console.log('🗓️ Utilisation daysBack:', daysBack);
+        const dateBack = new Date();
+        dateBack.setDate(dateBack.getDate() - daysBack);
+        const dateStr = dateBack.toISOString().split('T')[0].replace(/-/g, '/');
+        query += ` after:${dateStr}`;
+      }
 
       console.log('🔍 Recherche Gmail:', query);
 

@@ -1375,4 +1375,92 @@ button:disabled {
   .import-stat-card .stat-label {
     font-size: 0.8rem;
   }
+  
+  /* Responsive pour les champs de période */
+  .manual-import-period h5 {
+    font-size: 1rem;
+    margin-bottom: 10px;
+  }
+  
+  .period-inputs {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .date-input-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .date-input-group label {
+    margin-bottom: 5px;
+    font-size: 0.9rem;
+  }
+  
+  .period-help {
+    font-size: 0.8rem;
+    line-height: 1.4;
+    margin-top: 8px;
+  }
+}
+
+/* Styles pour la sélection de période d'import manuel */
+.manual-import-period {
+  background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+  border: 1px solid #dee2e6;
+  border-radius: 10px;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.manual-import-period h5 {
+  margin: 0 0 15px 0;
+  color: #495057;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.period-inputs {
+  display: flex;
+  gap: 20px;
+  align-items: flex-end;
+}
+
+.date-input-group {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.date-input-group label {
+  margin-bottom: 5px;
+  font-weight: 500;
+  color: #6c757d;
+  font-size: 0.95rem;
+}
+
+.date-input {
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.date-input:focus {
+  outline: none;
+  border-color: #ff6b35;
+  box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.25);
+}
+
+.period-help {
+  margin-top: 12px;
+  padding: 10px;
+  background: rgba(255, 107, 53, 0.1);
+  border-left: 4px solid #ff6b35;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: #495057;
+  line-height: 1.5;
 }

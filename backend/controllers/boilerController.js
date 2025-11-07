@@ -635,6 +635,11 @@ exports.triggerManualImport = async (req, res) => {
   try {
     console.log('🔄 Déclenchement manuel de l\'import demandé');
     
+    // Récupérer les paramètres de période depuis la requête
+    const { dateFrom, dateTo } = req.body;
+    
+    console.log('📅 Paramètres de période:', { dateFrom, dateTo });
+    
     // Importer le service d'auto-import
     const autoImportService = require('../services/autoImportService');
     
@@ -654,8 +659,20 @@ exports.triggerManualImport = async (req, res) => {
     
     console.log(`📊 État avant import: ${statsBefore} entrées, ${filesBefore.length} fichiers`);
     
+    // Préparer les paramètres pour l'import avec période optionnelle
+    const importParams = {};
+    if (dateFrom || dateTo) {
+      importParams.period = {
+        dateFrom: dateFrom ? new Date(dateFrom) : null,
+        dateTo: dateTo ? new Date(dateTo) : null
+      };
+      console.log('🗓️ Import avec période spécifique:', importParams.period);
+    } else {
+      console.log('🗓️ Import avec paramètres Gmail par défaut');
+    }
+    
     // Déclencher l'import des emails
-    const importResult = await autoImportService.processGmailEmails();
+    const importResult = await autoImportService.processGmailEmails(importParams);
     
     if (!importResult.success) {
       return res.status(500).json({
