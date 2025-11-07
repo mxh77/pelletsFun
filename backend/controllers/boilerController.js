@@ -676,7 +676,8 @@ exports.triggerManualImport = async (req, res) => {
     console.log(`✅ Import terminé: +${newEntries} entrées, +${newFiles} fichiers`);
     
     // Obtenir le statut du service pour les détails
-    const serviceStatus = autoImportService.getDetailedStatus();
+    const serviceStatus = autoImportService.getStatus();
+    const serviceStats = autoImportService.stats;
     
     res.json({
       success: true,
@@ -690,10 +691,10 @@ exports.triggerManualImport = async (req, res) => {
         newFiles: newFiles,
         importDetails: importResult.details || {},
         serviceStats: {
-          filesProcessed: serviceStatus.stats.filesProcessed,
-          duplicatesSkipped: serviceStatus.stats.duplicatesSkipped,
-          totalImported: serviceStatus.stats.totalImported,
-          errorRate: serviceStatus.stats.errorRate
+          filesProcessed: serviceStats.filesProcessed || 0,
+          duplicatesSkipped: 0, // Pas de tracking des doublons dans le service actuel
+          totalImported: serviceStats.totalFiles || 0,
+          errorRate: serviceStats.errors > 0 ? (serviceStats.errors / (serviceStats.filesProcessed || 1)) : 0
         }
       }
     });
@@ -713,8 +714,9 @@ exports.getImportStatus = async (req, res) => {
   try {
     const autoImportService = require('../services/autoImportService');
     
-    // Obtenir le statut détaillé
-    const detailedStatus = autoImportService.getDetailedStatus();
+    // Obtenir le statut du service
+    const serviceStatus = autoImportService.getStatus();
+    const serviceStats = autoImportService.stats;
     
     // Vérifier la configuration Gmail
     const gmailStatus = await autoImportService.initializeGmail();
@@ -730,16 +732,22 @@ exports.getImportStatus = async (req, res) => {
     res.json({
       success: true,
       service: {
-        isWatching: detailedStatus.service.isWatching,
-        cronActive: detailedStatus.service.cronActive,
+        isWatching: serviceStatus.isWatching,
+        cronActive: serviceStatus.cronActive,
         gmailConfigured: gmailStatus.configured,
         gmailError: gmailStatus.error || null
       },
-      stats: detailedStatus.stats,
+      stats: {
+        filesProcessed: serviceStats.filesProcessed || 0,
+        errors: serviceStats.errors || 0,
+        lastRun: serviceStats.lastRun || null,
+        totalFiles: serviceStats.totalFiles || 0,
+        successfulFiles: serviceStats.successfulFiles || 0
+      },
       database: dbStats,
       config: {
-        emailSettings: detailedStatus.config.gmail || {},
-        preventDuplicates: detailedStatus.config.preventDuplicates || true
+        emailSettings: serviceStatus.config.gmail || {},
+        preventDuplicates: true
       }
     });
     
