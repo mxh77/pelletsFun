@@ -372,10 +372,36 @@ class AutoImportService {
     }
   }
 
+  // Obtenir la configuration de pattern temporel
+  getImportInterval() {
+    // Utiliser la variable d'environnement ou valeur par défaut
+    return parseInt(process.env.BOILER_IMPORT_INTERVAL) || 1; // minutes
+  }
+
+  // Fonction pour vérifier si une ligne doit être conservée selon le pattern temporel
+  shouldKeepTimeEntry(timeString, importInterval) {
+    if (importInterval <= 1) return true; // Garder toutes les entrées si interval = 1 minute
+    
+    // Parser le temps au format HH:MM
+    const timeParts = timeString.split(':');
+    if (timeParts.length !== 2) return true; // Si format invalide, garder l'entrée
+    
+    const minutes = parseInt(timeParts[1]);
+    if (isNaN(minutes)) return true; // Si minutes invalides, garder l'entrée
+    
+    // Ne garder que les entrées qui correspondent au pattern (ex: 0, 2, 4, 6... pour interval=2)
+    return minutes % importInterval === 0;
+  }
+
   // Fonction d'import réutilisable
   async importCSVFile(filePath, filename) {
     const results = [];
     let lineCount = 0;
+    let filteredCount = 0; // Compteur des lignes filtrées
+
+    // Obtenir l'intervalle de filtrage configuré
+    const importInterval = parseInt(this.getImportInterval());
+    console.log(`📊 Pattern d'import configuré: toutes les ${importInterval} minute(s)`);
 
     await new Promise((resolve, reject) => {
       fs.createReadStream(filePath, { encoding: 'latin1' })
@@ -398,9 +424,18 @@ class AutoImportService {
             
             if (isNaN(date.getTime())) return;
 
+            // Extraire et vérifier le temps
+            const timeString = (data['Zeit '] || data.Zeit)?.trim() || '';
+            
+            // Appliquer le filtre temporel
+            if (!this.shouldKeepTimeEntry(timeString, importInterval)) {
+              filteredCount++;
+              return; // Ignorer cette entrée
+            }
+
             const boilerEntry = {
               date: date,
-              time: (data['Zeit '] || data.Zeit)?.trim() || '',
+              time: timeString,
               outsideTemp: parseFloat((data['AT [°C]'] || data['AT [°C] '])?.replace(',', '.')) || 0,
               outsideTempActive: parseFloat((data['ATakt [°C]'] || data['ATakt [°C] '])?.replace(',', '.')) || 0,
               heatingFlowTemp: parseFloat((data['HK1 VL Ist[°C]'] || data['HK1 VL Ist[°C] '])?.replace(',', '.')) || 0,
@@ -435,11 +470,15 @@ class AutoImportService {
       await BoilerData.insertMany(results);
     }
 
+    console.log(`📈 Filtrage appliqué: ${lineCount} lignes lues, ${filteredCount} filtrées, ${results.length} conservées`);
+
     return {
       success: true,
-      message: `${results.length} entrées importées depuis ${filename}`,
+      message: `${results.length} entrées importées depuis ${filename} (${filteredCount} filtrées selon pattern ${importInterval}min)`,
       linesProcessed: lineCount,
-      validEntries: results.length
+      validEntries: results.length,
+      filteredEntries: filteredCount,
+      importInterval: importInterval
     };
   }
 

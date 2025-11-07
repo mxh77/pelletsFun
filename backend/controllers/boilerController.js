@@ -45,7 +45,9 @@ const BOILER_CONFIG = {
   // Consommation pellets par kW/h (kg) - valeur approximative
   pelletsPerKWh: 0.2, // 200g de pellets par kWh
   // Facteur de modulation (la chaudière module sa puissance selon les besoins)
-  modulationFactor: true
+  modulationFactor: true,
+  // Pattern temporel d'import (en minutes) - filtre les données pour réduire le volume
+  importInterval: 1 // 1 = toutes les minutes, 2 = toutes les 2 minutes, 5 = toutes les 5 minutes, etc.
 };
 
 // Middleware d'upload
@@ -384,13 +386,17 @@ exports.getBoilerStats = async (req, res) => {
 // Mettre à jour la configuration de la chaudière
 exports.updateBoilerConfig = async (req, res) => {
   try {
-    const { nominalPower, pelletsPerKWh } = req.body;
+    const { nominalPower, pelletsPerKWh, importInterval } = req.body;
     
     if (nominalPower) {
       BOILER_CONFIG.nominalPower = parseFloat(nominalPower);
     }
     if (pelletsPerKWh) {
       BOILER_CONFIG.pelletsPerKWh = parseFloat(pelletsPerKWh);
+    }
+    if (importInterval) {
+      BOILER_CONFIG.importInterval = parseInt(importInterval);
+      console.log(`📊 Pattern d'import mis à jour: toutes les ${importInterval} minute(s)`);
     }
 
     res.json({
