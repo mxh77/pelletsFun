@@ -635,10 +635,11 @@ exports.triggerManualImport = async (req, res) => {
   try {
     console.log('🔄 Déclenchement manuel de l\'import demandé');
     
-    // Récupérer les paramètres de période depuis la requête
-    const { dateFrom, dateTo } = req.body;
+    // Récupérer les paramètres de période et expéditeurs depuis la requête
+    const { dateFrom, dateTo, senders } = req.body;
     
     console.log('📅 Paramètres de période:', { dateFrom, dateTo });
+    console.log('📧 Expéditeurs:', senders);
     
     // Importer le service d'auto-import
     const autoImportService = require('../services/autoImportService');
@@ -659,8 +660,9 @@ exports.triggerManualImport = async (req, res) => {
     
     console.log(`📊 État avant import: ${statsBefore} entrées, ${filesBefore.length} fichiers`);
     
-    // Préparer les paramètres pour l'import avec période optionnelle
+    // Préparer les paramètres pour l'import avec période et expéditeurs optionnels
     const importParams = {};
+    
     if (dateFrom || dateTo) {
       importParams.period = {
         dateFrom: dateFrom ? new Date(dateFrom) : null,
@@ -669,6 +671,13 @@ exports.triggerManualImport = async (req, res) => {
       console.log('🗓️ Import avec période spécifique:', importParams.period);
     } else {
       console.log('🗓️ Import avec paramètres Gmail par défaut');
+    }
+    
+    if (senders && Array.isArray(senders) && senders.length > 0) {
+      importParams.senders = senders;
+      console.log('📧 Import avec expéditeurs spécifiques:', senders);
+    } else {
+      console.log('📧 Import avec expéditeur configuré par défaut');
     }
     
     // Déclencher l'import des emails

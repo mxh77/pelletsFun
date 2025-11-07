@@ -140,8 +140,8 @@ class GmailService {
 
     try {
       const {
-        maxResults = 10,
-        daysBack = 7,
+        maxResults,
+        daysBack,
         dateFrom = null,
         dateTo = null,
         sender = null,
@@ -151,8 +151,18 @@ class GmailService {
       // Construire la requête de recherche
       let query = `has:attachment filename:csv ${subject}`;
       
+      // Support pour plusieurs expéditeurs
       if (sender) {
-        query += ` from:${sender}`;
+        if (Array.isArray(sender)) {
+          // Multiple senders - utiliser OR logic
+          if (sender.length > 0) {
+            const senderQuery = sender.map(s => `from:${s.trim()}`).join(' OR ');
+            query += ` (${senderQuery})`;
+          }
+        } else {
+          // Single sender
+          query += ` from:${sender}`;
+        }
       }
 
       // Ajouter filtre de date - soit période personnalisée, soit daysBack

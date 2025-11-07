@@ -121,21 +121,28 @@ class AutoImportService {
       console.log('📧 Récupération des emails Okofen depuis Gmail...');
       
       // Déterminer les paramètres de recherche
-      let searchParams;
+      let searchParams = {
+        maxResults: this.config.gmail.maxResults // Toujours inclure maxResults
+      };
+      
       if (options.period && (options.period.dateFrom || options.period.dateTo)) {
         // Utiliser la période spécifiée
-        searchParams = {
-          dateFrom: options.period.dateFrom,
-          dateTo: options.period.dateTo
-        };
+        searchParams.dateFrom = options.period.dateFrom;
+        searchParams.dateTo = options.period.dateTo;
         console.log('🗓️ Recherche avec période personnalisée:', searchParams);
       } else {
         // Utiliser les paramètres par défaut (daysBack)
-        searchParams = {
-          maxResults: this.config.gmail.maxResults,
-          daysBack: this.config.gmail.daysBack
-        };
+        searchParams.daysBack = this.config.gmail.daysBack;
         console.log('🗓️ Recherche avec paramètres par défaut:', searchParams);
+      }
+      
+      // Ajouter les expéditeurs s'ils sont spécifiés
+      if (options.senders && Array.isArray(options.senders) && options.senders.length > 0) {
+        searchParams.sender = options.senders;
+        console.log('📧 Expéditeurs spécifiés:', options.senders);
+      } else {
+        searchParams.sender = this.config.gmail.sender;
+        console.log('📧 Expéditeur par défaut:', this.config.gmail.sender);
       }
       
       // Lier le contexte pour éviter la perte de 'this'
@@ -175,7 +182,6 @@ class AutoImportService {
         processCallback: processCallback,
         markAsProcessed: true,
         labelProcessed: 'Okofen-Traité',
-        sender: this.config.gmail.sender,
         subject: this.config.gmail.subject,
         // Utiliser soit la période personnalisée, soit les paramètres par défaut
         ...searchParams

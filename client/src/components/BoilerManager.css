@@ -1402,6 +1402,35 @@ button:disabled {
     line-height: 1.4;
     margin-top: 8px;
   }
+  
+  /* Responsive pour les champs d'expéditeurs */
+  .manual-import-senders h5 {
+    font-size: 1rem;
+    margin-bottom: 10px;
+  }
+  
+  .sender-input {
+    font-size: 0.9rem;
+    padding: 6px 10px;
+  }
+  
+  .btn-remove-sender {
+    width: 28px;
+    height: 28px;
+    font-size: 0.7rem;
+  }
+  
+  .btn-add-sender {
+    font-size: 0.8rem;
+    padding: 6px 12px;
+    width: 100%;
+  }
+  
+  .senders-help {
+    font-size: 0.8rem;
+    line-height: 1.4;
+    margin-top: 8px;
+  }
 }
 
 /* Styles pour la sélection de période d'import manuel */
@@ -1462,5 +1491,104 @@ button:disabled {
   border-radius: 4px;
   font-size: 0.9rem;
   color: #495057;
+  line-height: 1.5;
+}
+
+/* Styles pour les expéditeurs multiples */
+.manual-import-senders {
+  background: linear-gradient(135deg, #f1f3f4, #e8eaed);
+  border: 1px solid #dadce0;
+  border-radius: 10px;
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.manual-import-senders h5 {
+  margin: 0 0 15px 0;
+  color: #3c4043;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.senders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sender-input-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.sender-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #dadce0;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  background: white;
+  transition: all 0.2s ease;
+}
+
+.sender-input:focus {
+  outline: none;
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.25);
+}
+
+.sender-input::placeholder {
+  color: #9aa0a6;
+  font-style: italic;
+}
+
+.btn-remove-sender {
+  background: #ea4335;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: all 0.2s ease;
+}
+
+.btn-remove-sender:hover {
+  background: #d33b2c;
+  transform: scale(1.1);
+}
+
+.btn-add-sender {
+  background: linear-gradient(135deg, #34a853, #137333);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 5px;
+  align-self: flex-start;
+}
+
+.btn-add-sender:hover {
+  background: linear-gradient(135deg, #2d8f47, #0f5d28);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(52, 168, 83, 0.3);
+}
+
+.senders-help {
+  margin-top: 12px;
+  padding: 10px;
+  background: rgba(26, 115, 232, 0.1);
+  border-left: 4px solid #1a73e8;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: #3c4043;
   line-height: 1.5;
 }
