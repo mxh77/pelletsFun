@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import './BoilerManager.css';
+import './BoilerManagerRestructured.css';
+// Force rebuild - Interface restructurée en 3 sections pliables - Version 2.0
 
 const BoilerManager = () => {
   // États principaux
@@ -79,7 +80,7 @@ const BoilerManager = () => {
   const loadImportHistory = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_URL}/api/boiler/history`);
+      const response = await axios.get(`${API_URL}/api/boiler/import-history`);
       setImportHistory(response.data);
     } catch (error) {
       console.error('Erreur chargement historique:', error);
