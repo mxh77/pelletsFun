@@ -81,7 +81,26 @@ const BoilerManager = () => {
     try {
       setLoading(true);
       const response = await axios.get(`${API_URL}/api/boiler/import-history`);
-      setImportHistory(response.data);
+      
+      // Adapter la structure des données pour l'interface
+      const adaptedData = {
+        success: response.data.success,
+        summary: {
+          uniqueFiles: response.data.totalFiles,
+          totalEntries: response.data.totalEntries
+        },
+        files: response.data.files.map(file => ({
+          filename: file.filename,
+          entryCount: file.totalEntries,
+          lastImportDate: file.lastImport,
+          avgFileSize: file.fileSize ? `${file.fileSize} KB` : 'N/A',
+          dateRange: file.dateRange,
+          avgOutsideTemp: file.avgOutsideTemp,
+          status: file.status
+        }))
+      };
+      
+      setImportHistory(adaptedData);
     } catch (error) {
       console.error('Erreur chargement historique:', error);
     } finally {
