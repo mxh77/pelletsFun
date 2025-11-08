@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import './BoilerManagerRestructured.css';
+import './BoilerManager.css';
 
 const BoilerManager = () => {
   // États principaux
