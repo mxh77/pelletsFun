@@ -280,6 +280,7 @@ const BoilerManager = () => {
       <div className="boiler-header">
         <h2>🔥 Gestion Données Chaudière</h2>
         <p>Configuration, import et analyse des données de votre chaudière Okofen</p>
+        {/* Force rebuild timestamp: 2025-11-08 */}
       </div>
 
       {/* 🔧 SECTION 1: CONFIGURATION */}
