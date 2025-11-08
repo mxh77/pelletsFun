@@ -50,6 +50,18 @@ class GmailService {
       try {
         const tokenData = await fs.readFile(tokenPath, 'utf8');
         this.token = JSON.parse(tokenData);
+        
+        // Vérifier si le refresh_token est présent
+        if (!this.token.refresh_token) {
+          console.log('⚠️ Refresh token manquant, nouvelle autorisation requise');
+          return { 
+            configured: false, 
+            error: 'Refresh token manquant - nouvelle autorisation requise',
+            authUrl: await this.getAuthUrl(),
+            needsReauth: true
+          };
+        }
+        
         this.auth.setCredentials(this.token);
       } catch (error) {
         console.log('🔐 Token Gmail non trouvé, autorisation requise');
@@ -63,8 +75,21 @@ class GmailService {
       // Initialiser le client Gmail
       this.gmail = google.gmail({ version: 'v1', auth: this.auth });
 
-      // Tester la connexion
-      await this.testConnection();
+      // Tester la connexion et gérer l'expiration du token
+      try {
+        await this.testConnection();
+      } catch (error) {
+        if (error.message.includes('refresh token') || error.message.includes('invalid_grant')) {
+          console.log('🔄 Token expiré ou invalide, nouvelle autorisation requise');
+          return { 
+            configured: false, 
+            error: 'Token expiré - nouvelle autorisation requise',
+            authUrl: await this.getAuthUrl(),
+            needsReauth: true
+          };
+        }
+        throw error;
+      }
 
       console.log('✅ Service Gmail initialisé avec succès');
       return { configured: true, message: 'Gmail service prêt' };
@@ -92,8 +117,9 @@ class GmailService {
     ];
 
     return this.auth.generateAuthUrl({
-      access_type: 'online',
+      access_type: 'offline', // Nécessaire pour obtenir un refresh_token
       scope: SCOPES,
+      prompt: 'consent' // Force la demande de consentement pour obtenir le refresh_token
     });
   }
 
