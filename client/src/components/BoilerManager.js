@@ -41,16 +41,29 @@ const BoilerManager = () => {
 
   // Chargement des données initiales
   useEffect(() => {
+    loadConfig();
     loadStats();
     loadAutoImportStatus();
     loadCronStatus();
   }, []);
 
+  const loadConfig = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/boiler/config`);
+      if (response.data.success) {
+        setConfig(response.data.config);
+      }
+    } catch (error) {
+      console.error('Erreur chargement config:', error);
+      // Garder les valeurs par défaut en cas d'erreur
+    }
+  };
+
   const loadStats = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/boiler/stats`);
       setStats(response.data);
-      setConfig(response.data.config);
+      // Ne plus récupérer la config depuis stats, elle est chargée séparément
     } catch (error) {
       console.error('Erreur chargement stats:', error);
     }
@@ -131,12 +144,14 @@ const BoilerManager = () => {
     try {
       const response = await axios.put(`${API_URL}/api/boiler/config`, config);
       if (response.data.success) {
-        setImportResult({ success: true, message: 'Configuration mise à jour avec succès' });
+        setImportResult({ success: true, message: 'Configuration sauvegardée en base de données' });
+        // Recharger la configuration depuis la base de données
+        await loadConfig();
         await loadStats();
       }
     } catch (error) {
       console.error('Erreur mise à jour config:', error);
-      setImportResult({ error: 'Erreur lors de la mise à jour de la configuration' });
+      setImportResult({ error: 'Erreur lors de la sauvegarde de la configuration' });
     }
     setLoading(false);
   };

@@ -14,7 +14,8 @@ router.get('/consumption', boilerController.calculateConsumption);
 // Statistiques générales des données chaudière
 router.get('/stats', boilerController.getBoilerStats);
 
-// Mettre à jour la configuration de la chaudière
+// Configuration de la chaudière
+router.get('/config', boilerController.getBoilerConfig);
 router.put('/config', boilerController.updateBoilerConfig);
 
 // Auto-import service

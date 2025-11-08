@@ -1,4 +1,5 @@
 const BoilerData = require('../models/BoilerData');
+const BoilerConfig = require('../models/BoilerConfig');
 const csv = require('csv-parser');
 const fs = require('fs');
 const path = require('path');
@@ -38,17 +39,34 @@ const upload = multer({
   }
 });
 
-// Configuration consommation chaudière
-const BOILER_CONFIG = {
-  // Puissance nominale de la chaudière (kW) - à ajuster selon votre modèle
-  nominalPower: 15, // kW par exemple
-  // Consommation pellets par kW/h (kg) - valeur approximative
-  pelletsPerKWh: 0.2, // 200g de pellets par kWh
-  // Facteur de modulation (la chaudière module sa puissance selon les besoins)
-  modulationFactor: true,
-  // Pattern temporel d'import (en minutes) - filtre les données pour réduire le volume
-  importInterval: 1 // 1 = toutes les minutes, 2 = toutes les 2 minutes, 5 = toutes les 5 minutes, etc.
-};
+// Fonction helper pour récupérer la configuration depuis la base de données
+async function getBoilerConfigData() {
+  try {
+    let config = await BoilerConfig.findOne({ configType: 'main' });
+    
+    // Si pas de configuration en base, créer une configuration par défaut
+    if (!config) {
+      config = new BoilerConfig({
+        nominalPower: 15,
+        pelletsPerKWh: 0.2,
+        importInterval: 1,
+        configType: 'main'
+      });
+      await config.save();
+      console.log('🔧 Configuration par défaut créée en base de données');
+    }
+    
+    return config;
+  } catch (error) {
+    console.error('Erreur récupération config:', error);
+    // Fallback en cas d'erreur
+    return {
+      nominalPower: 15,
+      pelletsPerKWh: 0.2,
+      importInterval: 1
+    };
+  }
+}
 
 // Middleware d'upload
 exports.uploadCSV = upload.single('csvFile');
@@ -249,6 +267,9 @@ exports.calculateConsumption = async (req, res) => {
       });
     }
 
+    // Récupérer la configuration depuis la base de données
+    const config = await getBoilerConfigData();
+
     // Récupérer les données de runtime pour la période
     const startData = await BoilerData.findOne({
       date: { $gte: new Date(startDate) }
@@ -290,8 +311,8 @@ exports.calculateConsumption = async (req, res) => {
     const avgOutsideTemp = periodData[0]?.avgOutsideTemp || 10;
 
     // Calculer la consommation de pellets
-    const effectivePower = BOILER_CONFIG.nominalPower * (avgModulation / 100);
-    const pelletConsumption = runtimeHours * effectivePower * BOILER_CONFIG.pelletsPerKWh;
+    const effectivePower = config.nominalPower * (avgModulation / 100);
+    const pelletConsumption = runtimeHours * effectivePower * config.pelletsPerKWh;
 
     // Statistiques détaillées
     const stats = await BoilerData.aggregate([
@@ -330,7 +351,11 @@ exports.calculateConsumption = async (req, res) => {
       weather: {
         avgOutsideTempC: Math.round(avgOutsideTemp * 10) / 10
       },
-      config: BOILER_CONFIG,
+      config: {
+        nominalPower: config.nominalPower,
+        pelletsPerKWh: config.pelletsPerKWh,
+        importInterval: config.importInterval
+      },
       dailyStats: stats
     });
 
@@ -346,6 +371,9 @@ exports.calculateConsumption = async (req, res) => {
 // Obtenir les statistiques générales des données chaudière
 exports.getBoilerStats = async (req, res) => {
   try {
+    // Récupérer la configuration depuis la base de données
+    const config = await getBoilerConfigData();
+
     const stats = await BoilerData.aggregate([
       {
         $group: {
@@ -363,15 +391,19 @@ exports.getBoilerStats = async (req, res) => {
     // Runtime total et consommation estimée
     const totalRuntimeHours = stats[0]?.maxRuntime || 0;
     const estimatedTotalConsumption = totalRuntimeHours * 
-      BOILER_CONFIG.nominalPower * 
+      config.nominalPower * 
       0.6 * // Modulation moyenne estimée
-      BOILER_CONFIG.pelletsPerKWh;
+      config.pelletsPerKWh;
 
     res.json({
       stats: stats[0] || {},
       totalRuntimeHours,
       estimatedTotalConsumptionKg: Math.round(estimatedTotalConsumption),
-      config: BOILER_CONFIG
+      config: {
+        nominalPower: config.nominalPower,
+        pelletsPerKWh: config.pelletsPerKWh,
+        importInterval: config.importInterval
+      }
     });
 
   } catch (error) {
@@ -384,24 +416,65 @@ exports.getBoilerStats = async (req, res) => {
 };
 
 // Mettre à jour la configuration de la chaudière
+// Récupérer la configuration de la chaudière
+exports.getBoilerConfig = async (req, res) => {
+  try {
+    const config = await getBoilerConfigData();
+    
+    res.json({
+      success: true,
+      config: {
+        nominalPower: config.nominalPower,
+        pelletsPerKWh: config.pelletsPerKWh,
+        importInterval: config.importInterval,
+        updatedAt: config.updatedAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Erreur récupération config chaudière:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+};
+
+// Mettre à jour la configuration de la chaudière
 exports.updateBoilerConfig = async (req, res) => {
   try {
     const { nominalPower, pelletsPerKWh, importInterval } = req.body;
     
-    if (nominalPower) {
-      BOILER_CONFIG.nominalPower = parseFloat(nominalPower);
+    // Récupérer ou créer la configuration
+    let config = await BoilerConfig.findOne({ configType: 'main' });
+    
+    if (!config) {
+      config = new BoilerConfig({ configType: 'main' });
     }
-    if (pelletsPerKWh) {
-      BOILER_CONFIG.pelletsPerKWh = parseFloat(pelletsPerKWh);
+    
+    // Mettre à jour les valeurs si fournies
+    if (nominalPower !== undefined) {
+      config.nominalPower = parseFloat(nominalPower);
     }
-    if (importInterval) {
-      BOILER_CONFIG.importInterval = parseInt(importInterval);
+    if (pelletsPerKWh !== undefined) {
+      config.pelletsPerKWh = parseFloat(pelletsPerKWh);
+    }
+    if (importInterval !== undefined) {
+      config.importInterval = parseInt(importInterval);
       console.log(`📊 Pattern d'import mis à jour: toutes les ${importInterval} minute(s)`);
     }
 
+    // Sauvegarder en base
+    await config.save();
+
     res.json({
       success: true,
-      config: BOILER_CONFIG
+      config: {
+        nominalPower: config.nominalPower,
+        pelletsPerKWh: config.pelletsPerKWh,
+        importInterval: config.importInterval,
+        updatedAt: config.updatedAt
+      }
     });
 
   } catch (error) {
