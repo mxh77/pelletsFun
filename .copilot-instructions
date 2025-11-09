@@ -1,0 +1,77 @@
+# Instructions pour GitHub Copilot - PelletsFun
+
+## Contexte du projet
+Ce projet est une application de gestion de données de chaudière à pellets avec :
+- Backend Node.js/Express avec MongoDB
+- Frontend React
+- Intégration Gmail API pour import automatique
+- Déploiement sur serveur Proxmox
+
+## Instructions de développement
+
+### Architecture
+- Respecter la structure 3-sections pliables dans l'interface (Configuration, Import & Traitement, Analyse & Historique)
+- Maintenir la persistance des configurations en base de données
+- Suivre les patterns établis pour les modèles MongoDB (BoilerConfig, GmailConfig, etc.)
+
+### Bonnes pratiques
+- Toujours valider les entrées utilisateur côté backend
+- Utiliser les styles CSS existants dans BoilerManagerRestructured.css
+- Maintenir la cohérence des messages d'erreur et de succès
+- Logger les opérations importantes avec des emojis pour faciliter le debugging
+
+### Gestion des données
+- Éviter la duplication de données en MongoDB (optimisation quota)
+- Implémenter la suppression en cascade pour maintenir l'intégrité
+- Utiliser les agrégations MongoDB pour les statistiques
+- Maintenir l'historique des imports avec catégorisation temporelle
+
+### Interface utilisateur
+- Utiliser les composants pliables existants
+- Maintenir l'accessibilité (focus states, ARIA labels)
+- Responsive design obligatoire
+- Confirmations utilisateur pour les actions destructives
+
+### Configuration Gmail
+- Centraliser toute la configuration Gmail dans GmailConfig
+- Supporter les multi-expéditeurs via le tableau senders
+- Gérer la migration automatique des anciennes configurations
+- Maintenir la compatibilité OAuth2 avec refresh tokens
+
+## Processus de déploiement
+
+### À la fin de chaque développement d'évolution
+**OBLIGATOIRE** : Proposer un déploiement via le script `deploy-local.sh` avec le message de commit approprié.
+
+Format recommandé :
+```bash
+./deploy-local.sh "feat: Description concise de l'évolution
+
+- Point clé 1
+- Point clé 2
+- Point clé 3"
+```
+
+Exemples de messages de commit :
+- `feat: Add import deletion and history categorization`
+- `fix: Resolve Gmail OAuth token refresh issue`
+- `refactor: Centralize configuration management`
+- `style: Improve responsive design for mobile`
+
+### Structure des messages de commit
+- Utiliser les préfixes conventionnels : `feat:`, `fix:`, `refactor:`, `style:`, `docs:`
+- Description courte en anglais (première ligne)
+- Détails en français avec tirets (lignes suivantes)
+- Mentionner les breaking changes si applicable
+
+### Tests avant déploiement
+- Vérifier le build frontend (`npm run build`)
+- Tester les nouvelles fonctionnalités localement
+- Vérifier les logs backend pour les erreurs
+- Valider l'interface sur différentes tailles d'écran
+
+## Maintenance et debugging
+- Utiliser `pm2 logs pelletsfun-backend` pour les logs
+- Surveiller l'utilisation MongoDB Atlas (quota 512MB)
+- Vérifier les certificats SSL et la configuration Nginx
+- Maintenir la documentation des nouvelles fonctionnalités
