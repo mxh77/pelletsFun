@@ -42,5 +42,6 @@ router.get('/import/status', boilerController.getImportStatus);
 
 // Historique des imports
 router.get('/import-history', boilerController.getImportHistory);
+router.delete('/import/:filename', boilerController.deleteImport);
 
 module.exports = router;

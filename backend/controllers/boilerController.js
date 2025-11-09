@@ -976,3 +976,64 @@ exports.getImportHistory = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// Supprimer un import spécifique
+exports.deleteImport = async (req, res) => {
+  try {
+    const { filename } = req.params;
+    
+    if (!filename) {
+      return res.status(400).json({ error: 'Nom de fichier requis' });
+    }
+
+    console.log(`🗑️ Suppression de l'import: ${filename}`);
+
+    // Vérifier combien d'entrées seront supprimées
+    const entryCount = await BoilerData.countDocuments({ filename });
+    
+    if (entryCount === 0) {
+      return res.status(404).json({ 
+        error: `Aucune donnée trouvée pour le fichier "${filename}"` 
+      });
+    }
+
+    // Supprimer toutes les entrées de ce fichier
+    const deleteResult = await BoilerData.deleteMany({ filename });
+
+    // Supprimer le fichier physique s'il existe
+    const possiblePaths = [
+      path.join(process.cwd(), 'auto-downloads', filename),
+      path.join(process.cwd(), filename),
+      path.join(process.cwd(), 'uploads', filename)
+    ];
+
+    let fileDeleted = false;
+    for (const testPath of possiblePaths) {
+      if (fs.existsSync(testPath)) {
+        try {
+          fs.unlinkSync(testPath);
+          fileDeleted = true;
+          console.log(`📁 Fichier physique supprimé: ${testPath}`);
+          break;
+        } catch (error) {
+          console.warn(`⚠️ Impossible de supprimer le fichier: ${testPath}`, error.message);
+        }
+      }
+    }
+
+    console.log(`✅ Suppression terminée: ${deleteResult.deletedCount} entrées supprimées`);
+
+    res.json({
+      success: true,
+      message: `Import "${filename}" supprimé avec succès`,
+      deletedEntries: deleteResult.deletedCount,
+      fileDeleted
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur suppression import:', error);
+    res.status(500).json({ 
+      error: `Erreur lors de la suppression: ${error.message}` 
+    });
+  }
+};

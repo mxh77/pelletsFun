@@ -27,6 +27,9 @@ const BoilerManager = () => {
     importTraitement: true,
     analyseHistorique: false
   });
+  
+  // État pour les catégories d'historique
+  const [expandedCategories, setExpandedCategories] = useState({});
 
   const API_URL = process.env.REACT_APP_API_URL || '';
 
@@ -113,11 +116,90 @@ const BoilerManager = () => {
       };
       
       setImportHistory(adaptedData);
+      
+      // Auto-ouvrir les 2 catégories les plus récentes
+      if (adaptedData.files && adaptedData.files.length > 0) {
+        const categories = categorizeFilesByDate(adaptedData.files);
+        const autoExpand = {};
+        categories.slice(0, 2).forEach(category => {
+          autoExpand[category.key] = true;
+        });
+        setExpandedCategories(prev => ({ ...prev, ...autoExpand }));
+      }
     } catch (error) {
       console.error('Erreur chargement historique:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Suppression d'un import spécifique
+  const deleteImport = async (filename) => {
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer l'import "${filename}" ?\n\nCette action est irréversible et supprimera toutes les données associées à ce fichier.`)) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await axios.delete(`${API_URL}/api/boiler/import/${encodeURIComponent(filename)}`);
+      
+      if (response.data.success) {
+        setImportResult({
+          success: true,
+          message: `Import "${filename}" supprimé avec succès. ${response.data.deletedEntries} entrées supprimées.`
+        });
+        
+        // Recharger l'historique et les stats
+        await loadImportHistory();
+        await loadStats();
+      }
+    } catch (error) {
+      console.error('Erreur suppression import:', error);
+      setImportResult({
+        error: `Erreur lors de la suppression de "${filename}": ${error.response?.data?.error || error.message}`
+      });
+    }
+    setLoading(false);
+  };
+
+  // Catégorisation des fichiers par année/mois
+  const categorizeFilesByDate = (files) => {
+    const categories = {};
+    
+    files.forEach(file => {
+      const date = new Date(file.lastImportDate);
+      const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const displayDate = date.toLocaleDateString('fr-FR', { 
+        year: 'numeric', 
+        month: 'long' 
+      });
+      
+      if (!categories[yearMonth]) {
+        categories[yearMonth] = {
+          displayDate,
+          files: [],
+          totalEntries: 0,
+          totalFiles: 0
+        };
+      }
+      
+      categories[yearMonth].files.push(file);
+      categories[yearMonth].totalEntries += file.entryCount || 0;
+      categories[yearMonth].totalFiles += 1;
+    });
+    
+    // Trier par date décroissante
+    return Object.entries(categories)
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([key, value]) => ({ ...value, key }));
+  };
+
+  // Basculer l'affichage d'une catégorie
+  const toggleCategory = (categoryKey) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [categoryKey]: !prev[categoryKey]
+    }));
   };
 
   // Fonctions principales
@@ -662,29 +744,66 @@ const BoilerManager = () => {
                   </div>
 
                   {importHistory.files && importHistory.files.length > 0 && (
-                    <div className="history-table-container">
-                      <table className="history-table">
-                        <thead>
-                          <tr>
-                            <th>📁 Fichier</th>
-                            <th>📊 Entrées</th>
-                            <th>📅 Date Import</th>
-                            <th>📏 Taille</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {importHistory.files.map((file, index) => (
-                            <tr key={index}>
-                              <td className="file-name">{file.filename}</td>
-                              <td className="entry-count">{file.entryCount?.toLocaleString()}</td>
-                              <td className="import-date">
-                                {new Date(file.lastImportDate).toLocaleString('fr-FR')}
-                              </td>
-                              <td className="file-size">{file.avgFileSize || 'N/A'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                    <div className="history-categorized">
+                      {categorizeFilesByDate(importHistory.files).map((category) => (
+                        <div key={category.key} className="history-category">
+                          <div 
+                            className="category-header"
+                            onClick={() => toggleCategory(category.key)}
+                          >
+                            <span className="category-toggle">
+                              {expandedCategories[category.key] ? '🔽' : '▶️'}
+                            </span>
+                            <h4 className="category-title">📅 {category.displayDate}</h4>
+                            <div className="category-stats">
+                              <span className="category-stat">
+                                📁 {category.totalFiles} fichier{category.totalFiles > 1 ? 's' : ''}
+                              </span>
+                              <span className="category-stat">
+                                📊 {category.totalEntries.toLocaleString()} entrée{category.totalEntries > 1 ? 's' : ''}
+                              </span>
+                            </div>
+                          </div>
+
+                          {expandedCategories[category.key] && (
+                            <div className="category-content">
+                              <table className="history-table">
+                                <thead>
+                                  <tr>
+                                    <th>📁 Fichier</th>
+                                    <th>📊 Entrées</th>
+                                    <th>📅 Date Import</th>
+                                    <th>📏 Taille</th>
+                                    <th>🗑️ Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {category.files.map((file, index) => (
+                                    <tr key={index}>
+                                      <td className="file-name">{file.filename}</td>
+                                      <td className="entry-count">{file.entryCount?.toLocaleString()}</td>
+                                      <td className="import-date">
+                                        {new Date(file.lastImportDate).toLocaleString('fr-FR')}
+                                      </td>
+                                      <td className="file-size">{file.avgFileSize || 'N/A'}</td>
+                                      <td className="file-actions">
+                                        <button
+                                          onClick={() => deleteImport(file.filename)}
+                                          className="btn-delete-import"
+                                          title={`Supprimer l'import "${file.filename}"`}
+                                          disabled={loading}
+                                        >
+                                          🗑️
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
