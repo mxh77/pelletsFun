@@ -38,31 +38,38 @@ Ce projet est une application de gestion de données de chaudière à pellets av
 - Gérer la migration automatique des anciennes configurations
 - Maintenir la compatibilité OAuth2 avec refresh tokens
 
-## Processus de déploiement
+## Processus de version et déploiement
 
 ### À la fin de chaque développement d'évolution
-**OBLIGATOIRE** : Proposer un déploiement via le script `deploy-local.sh` avec le message de commit approprié.
+**OBLIGATOIRE** : Proposer un git add + git commit avec un message en français approprié.
 
-Format recommandé :
+Format des commandes recommandé :
 ```bash
-./deploy-local.sh "feat: Description concise de l'évolution
+git add .
+git commit -m "feat: Description concise de l'évolution
 
-- Point clé 1
-- Point clé 2
-- Point clé 3"
+- Point clé 1 en français
+- Point clé 2 en français  
+- Point clé 3 en français"
 ```
 
 Exemples de messages de commit :
-- `feat: Add import deletion and history categorization`
-- `fix: Resolve Gmail OAuth token refresh issue`
-- `refactor: Centralize configuration management`
-- `style: Improve responsive design for mobile`
+- `feat: Ajout suppression imports et catégorisation historique`
+- `fix: Correction filtrage intervalle d'import des données CSV`
+- `refactor: Centralisation gestion configuration Gmail`
+- `style: Amélioration design responsive mobile`
 
 ### Structure des messages de commit
 - Utiliser les préfixes conventionnels : `feat:`, `fix:`, `refactor:`, `style:`, `docs:`
-- Description courte en anglais (première ligne)
+- Description courte en français (première ligne)
 - Détails en français avec tirets (lignes suivantes)
 - Mentionner les breaking changes si applicable
+
+### Déploiement manuel
+Après le commit, l'utilisateur exécutera manuellement le script de déploiement :
+```bash
+./deploy-local.sh "Message du commit"
+```
 
 ### Tests avant déploiement
 - Vérifier le build frontend (`npm run build`)

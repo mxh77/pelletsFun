@@ -104,15 +104,26 @@ const BoilerManager = () => {
           uniqueFiles: response.data.totalFiles,
           totalEntries: response.data.totalEntries
         },
-        files: response.data.files.map(file => ({
-          filename: file.filename,
-          entryCount: file.totalEntries,
-          lastImportDate: file.lastImport,
-          avgFileSize: file.fileSize ? `${file.fileSize} KB` : 'N/A',
-          dateRange: file.dateRange,
-          avgOutsideTemp: file.avgOutsideTemp,
-          status: file.status
-        }))
+        files: response.data.files.map(file => {
+          // Calculer la date effective basée sur les données du fichier
+          let effectiveDate = new Date(file.lastImport); // Fallback sur date import
+          
+          if (file.dateRange && file.dateRange.max) {
+            // Utiliser la date maximale des données comme date effective
+            effectiveDate = new Date(file.dateRange.max);
+          }
+          
+          return {
+            filename: file.filename,
+            entryCount: file.totalEntries,
+            lastImportDate: file.lastImport,
+            effectiveDate: effectiveDate,
+            avgFileSize: file.fileSize ? `${file.fileSize} KB` : 'N/A',
+            dateRange: file.dateRange,
+            avgOutsideTemp: file.avgOutsideTemp,
+            status: file.status
+          };
+        })
       };
       
       setImportHistory(adaptedData);
@@ -162,12 +173,13 @@ const BoilerManager = () => {
     setLoading(false);
   };
 
-  // Catégorisation des fichiers par année/mois
+  // Catégorisation des fichiers par année/mois basée sur la date effective des données
   const categorizeFilesByDate = (files) => {
     const categories = {};
     
     files.forEach(file => {
-      const date = new Date(file.lastImportDate);
+      // Utiliser la date effective des données du fichier (pas la date d'import)
+      const date = new Date(file.effectiveDate || file.lastImportDate);
       const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       const displayDate = date.toLocaleDateString('fr-FR', { 
         year: 'numeric', 
