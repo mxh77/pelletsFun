@@ -51,10 +51,8 @@ class AutoImportService {
       // Configuration par défaut en cas d'erreur
       this.config.gmail = {
         enabled: false,
-        sender: '',
-        subject: 'okofen',
-        maxResults: 10,
-        daysBack: 7
+        senders: [''],
+        subject: 'X128812'
       };
       return null;
     }
@@ -131,18 +129,16 @@ class AutoImportService {
         searchParams.dateTo = options.period.dateTo;
         console.log('🗓️ Recherche avec période personnalisée:', searchParams);
       } else {
-        // Utiliser les paramètres par défaut (daysBack)
-        searchParams.daysBack = this.config.gmail.daysBack;
-        console.log('🗓️ Recherche avec paramètres par défaut:', searchParams);
+        console.log('🗓️ Recherche sans période spécifiée');
       }
       
       // Ajouter les expéditeurs s'ils sont spécifiés
       if (options.senders && Array.isArray(options.senders) && options.senders.length > 0) {
         searchParams.sender = options.senders;
         console.log('📧 Expéditeurs spécifiés:', options.senders);
-      } else {
-        searchParams.sender = this.config.gmail.sender;
-        console.log('📧 Expéditeur par défaut:', this.config.gmail.sender);
+      } else if (this.config.gmail.senders && this.config.gmail.senders.length > 0 && this.config.gmail.senders[0] !== '') {
+        searchParams.sender = this.config.gmail.senders;
+        console.log('📧 Expéditrices par défaut:', this.config.gmail.senders);
       }
       
       // Lier le contexte pour éviter la perte de 'this'

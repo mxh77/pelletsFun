@@ -13,24 +13,14 @@ const gmailConfigSchema = new mongoose.Schema({
     default: false
   },
   
-  sender: {
+  senders: [{
     type: String,
-    default: '' // Email de l'expéditeur (ex: chaudiere@example.com)
-  },
+    default: ''
+  }], // Tableau des emails expéditeurs (ex: ['chaudiere@example.com', 'autre@example.com'])
   
   subject: {
     type: String,
-    default: 'touch' // Mot-clé dans le sujet
-  },
-  
-  maxResults: {
-    type: Number,
-    default: 10 // Nombre max d'emails à traiter
-  },
-  
-  daysBack: {
-    type: Number,
-    default: 7 // Nombre de jours en arrière pour chercher
+    default: 'X128812' // Mot-clé dans le sujet
   },
   
   // Informations de statut

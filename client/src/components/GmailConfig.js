@@ -7,8 +7,7 @@ const GmailConfig = () => {
     enabled: false,
     sender: '',
     subject: 'okofen',
-    maxResults: 10,
-    daysBack: 7
+    senders: [''] // Tableau pour expéditrices multiples
   });
   
   const [status, setStatus] = useState({
@@ -29,7 +28,17 @@ const GmailConfig = () => {
   const loadGmailConfig = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/boiler/gmail/config`);
-      setConfig(response.data.config);
+      
+      // Migration de l'ancien format vers le nouveau
+      let configData = response.data.config;
+      if (configData.sender && !configData.senders) {
+        configData.senders = configData.sender ? [configData.sender] : [''];
+      }
+      if (!configData.senders || configData.senders.length === 0) {
+        configData.senders = [''];
+      }
+      
+      setConfig(configData);
       setStatus({
         configured: response.data.configured,
         loading: false,
@@ -78,6 +87,32 @@ const GmailConfig = () => {
         error: error.response?.data?.error || 'Erreur autorisation'
       });
     }
+  };
+
+  // Fonctions de gestion des expéditeurs multiples
+  const addSenderField = () => {
+    setConfig(prev => ({
+      ...prev,
+      senders: [...prev.senders, '']
+    }));
+  };
+
+  const removeSenderField = (index) => {
+    setConfig(prev => ({
+      ...prev,
+      senders: prev.senders.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateSender = (index, value) => {
+    setConfig(prev => {
+      const newSenders = [...prev.senders];
+      newSenders[index] = value;
+      return {
+        ...prev,
+        senders: newSenders
+      };
+    });
   };
 
   if (status.loading) {
@@ -199,46 +234,48 @@ const GmailConfig = () => {
             </div>
             
             <div className="config-row">
-              <label>Expéditeur (optionnel):</label>
-              <input
-                type="email"
-                value={config.sender}
-                onChange={(e) => setConfig({...config, sender: e.target.value})}
-                placeholder="adresse@okofen.com"
-              />
-              <small>Laisser vide pour tous les expéditeurs</small>
-            </div>
-            
-            <div className="config-row">
               <label>Mots-clés dans le sujet:</label>
               <input
                 type="text"
                 value={config.subject}
                 onChange={(e) => setConfig({...config, subject: e.target.value})}
-                placeholder="okofen"
+                placeholder="X128812"
               />
             </div>
             
+            {/* Gestion des adresses expéditrices multiples */}
             <div className="config-row">
-              <label>Nombre d'emails à vérifier:</label>
-              <input
-                type="number"
-                min="1"
-                max="50"
-                value={config.maxResults}
-                onChange={(e) => setConfig({...config, maxResults: parseInt(e.target.value)})}
-              />
-            </div>
-            
-            <div className="config-row">
-              <label>Jours en arrière à vérifier:</label>
-              <input
-                type="number"
-                min="1"
-                max="30"
-                value={config.daysBack}
-                onChange={(e) => setConfig({...config, daysBack: parseInt(e.target.value)})}
-              />
+              <label>📧 Adresses Expéditrices (Optionnel):</label>
+              <div className="senders-list">
+                {config.senders.map((sender, index) => (
+                  <div key={index} className="sender-input-group">
+                    <input 
+                      type="email"
+                      value={sender}
+                      onChange={(e) => updateSender(index, e.target.value)}
+                      placeholder="ex: no-reply@my.oekofen.info"
+                      className="sender-input"
+                    />
+                    {config.senders.length > 1 && (
+                      <button 
+                        type="button"
+                        onClick={() => removeSenderField(index)}
+                        className="btn-remove-sender"
+                      >
+                        ❌
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button 
+                  type="button"
+                  onClick={addSenderField}
+                  className="btn-add-sender"
+                >
+                  ➕ Ajouter une Adresse
+                </button>
+              </div>
+              <small>💡 <strong>Sans adresse :</strong> Recherche dans tous les emails</small>
             </div>
             
             <button 

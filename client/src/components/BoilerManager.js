@@ -20,7 +20,6 @@ const BoilerManager = () => {
   // États pour l'import manuel
   const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
   const [manualImportPeriod, setManualImportPeriod] = useState({ dateFrom: '', dateTo: '' });
-  const [manualImportSenders, setManualImportSenders] = useState(['']);
 
   // États pour les sections pliables
   const [expandedSections, setExpandedSections] = useState({
@@ -119,23 +118,6 @@ const BoilerManager = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Fonctions de gestion des expéditeurs multiples
-  const addSenderField = () => {
-    setManualImportSenders(prev => [...prev, '']);
-  };
-
-  const removeSenderField = (index) => {
-    setManualImportSenders(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const updateSender = (index, value) => {
-    setManualImportSenders(prev => {
-      const newSenders = [...prev];
-      newSenders[index] = value;
-      return newSenders;
-    });
   };
 
   // Fonctions principales
@@ -256,11 +238,6 @@ const BoilerManager = () => {
       }
       if (manualImportPeriod.dateTo) {
         periodParams.dateTo = manualImportPeriod.dateTo;
-      }
-
-      const validSenders = manualImportSenders.filter(sender => sender.trim() !== '');
-      if (validSenders.length > 0) {
-        periodParams.senders = validSenders;
       }
 
       const response = await axios.post(`${API_URL}/api/boiler/import/manual-trigger`, periodParams);
@@ -469,43 +446,6 @@ const BoilerManager = () => {
                 </div>
                 <div className="period-help">
                   💡 <strong>Sans période :</strong> Utilise les paramètres Gmail configurés
-                </div>
-              </div>
-              
-              {/* Sélection d'expéditeurs multiples */}
-              <div className="manual-import-senders">
-                <h4>📧 Adresses Expéditrices (Optionnel)</h4>
-                <div className="senders-list">
-                  {manualImportSenders.map((sender, index) => (
-                    <div key={index} className="sender-input-group">
-                      <input 
-                        type="email"
-                        value={sender}
-                        onChange={(e) => updateSender(index, e.target.value)}
-                        placeholder="ex: chaudiere@mondomaine.com"
-                        className="sender-input"
-                      />
-                      {manualImportSenders.length > 1 && (
-                        <button 
-                          type="button"
-                          onClick={() => removeSenderField(index)}
-                          className="btn-remove-sender"
-                        >
-                          ❌
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  <button 
-                    type="button"
-                    onClick={addSenderField}
-                    className="btn-add-sender"
-                  >
-                    ➕ Ajouter une Adresse
-                  </button>
-                </div>
-                <div className="senders-help">
-                  💡 <strong>Sans adresse :</strong> Utilise l'expéditeur configuré dans Gmail
                 </div>
               </div>
               
