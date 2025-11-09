@@ -108,8 +108,21 @@ const BoilerManager = () => {
           // Calculer la date effective basée sur les données du fichier
           let effectiveDate = new Date(file.lastImport); // Fallback sur date import
           
-          if (file.dateRange && file.dateRange.max) {
-            // Utiliser la date maximale des données comme date effective
+          // D'abord essayer d'extraire la date du nom du fichier (ex: touch_20251031.csv)
+          const dateMatch = file.filename.match(/(\d{8})/);
+          if (dateMatch) {
+            const dateStr = dateMatch[1]; // ex: "20251031"
+            const year = dateStr.substring(0, 4);
+            const month = dateStr.substring(4, 6);
+            const day = dateStr.substring(6, 8);
+            const extractedDate = new Date(`${year}-${month}-${day}`);
+            
+            if (!isNaN(extractedDate.getTime())) {
+              effectiveDate = extractedDate;
+            }
+          }
+          // Sinon utiliser dateRange.max si disponible
+          else if (file.dateRange && file.dateRange.max) {
             effectiveDate = new Date(file.dateRange.max);
           }
           
