@@ -42,6 +42,7 @@ Ce projet est une application de gestion de données de chaudière à pellets av
 
 ### À la fin de chaque développement d'évolution
 **OBLIGATOIRE** : Proposer un git add + git commit avec un message en français approprié.
+**INTERDIT** : Ne jamais proposer de déploiement local ou de production après une évolution.
 
 Format des commandes recommandé :
 ```bash
