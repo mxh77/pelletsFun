@@ -626,6 +626,12 @@ exports.checkForNewFiles = async (req, res) => {
 exports.getGmailConfig = async (req, res) => {
   try {
     const status = await autoImportService.initializeGmail();
+    
+    // Recharger la configuration pour s'assurer qu'elle est à jour
+    await autoImportService.loadGmailConfig();
+    
+    console.log('📧 Configuration Gmail récupérée:', autoImportService.config.gmail);
+    
     res.json({
       configured: status.configured,
       config: autoImportService.config.gmail,
@@ -639,20 +645,33 @@ exports.getGmailConfig = async (req, res) => {
 
 exports.updateGmailConfig = async (req, res) => {
   try {
-    const { enabled, sender, subject, maxResults, daysBack } = req.body;
+    const { enabled, sender, subject, senders, maxResults, daysBack } = req.body;
+    
+    // Gérer la migration de l'ancien format vers le nouveau
+    let sendersArray = senders;
+    if (!sendersArray && sender) {
+      // Migration de l'ancien format
+      sendersArray = [sender];
+    }
+    if (!sendersArray || sendersArray.length === 0) {
+      sendersArray = [''];
+    }
+    
+    console.log('📧 Données reçues pour mise à jour Gmail:', { enabled, sender, senders: sendersArray, subject });
     
     const updatedConfig = await autoImportService.updateGmailConfig({
       enabled: enabled !== undefined ? enabled : autoImportService.config.gmail?.enabled,
-      sender: sender || autoImportService.config.gmail?.sender,
-      subject: subject || autoImportService.config.gmail?.subject,
-      maxResults: maxResults || autoImportService.config.gmail?.maxResults,
-      daysBack: daysBack || autoImportService.config.gmail?.daysBack
+      senders: sendersArray,
+      subject: subject || autoImportService.config.gmail?.subject
+      // Suppression de maxResults et daysBack (centralisés)
     });
+    
+    console.log('✅ Configuration Gmail sauvegardée:', updatedConfig.toObject ? updatedConfig.toObject() : updatedConfig);
     
     res.json({
       success: true,
       message: 'Configuration Gmail mise à jour et sauvegardée',
-      config: updatedConfig
+      config: updatedConfig.toObject ? updatedConfig.toObject() : updatedConfig
     });
   } catch (error) {
     console.error('Erreur mise à jour Gmail:', error);
