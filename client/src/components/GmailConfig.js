@@ -303,17 +303,6 @@ const GmailConfig = () => {
               🔄 Actualiser Statut
             </button>
           </div>
-          
-          <div className="info-box">
-            <h4>📋 Fonctionnement Automatique</h4>
-            <ul>
-              <li>🕒 <strong>Vérification horaire:</strong> Le système vérifie automatiquement les nouveaux emails toutes les heures</li>
-              <li>📧 <strong>Filtre intelligent:</strong> Recherche les emails avec pièces jointes CSV contenant les mots-clés configurés</li>
-              <li>💾 <strong>Téléchargement:</strong> Les fichiers CSV sont téléchargés dans le dossier auto-downloads</li>
-              <li>🔄 <strong>Import automatique:</strong> Les données sont immédiatement importées dans la base de données</li>
-              <li>🏷️ <strong>Marquage:</strong> Les emails traités sont marqués avec le label "Okofen-Traité"</li>
-            </ul>
-          </div>
         </div>
       )}
 

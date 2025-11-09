@@ -299,32 +299,6 @@
   flex-wrap: wrap;
 }
 
-.info-box {
-  background: white;
-  padding: 25px;
-  border-radius: 8px;
-  border-left: 4px solid #17a2b8;
-}
-
-.info-box h4 {
-  color: #17a2b8;
-  margin-bottom: 15px;
-}
-
-.info-box ul {
-  list-style: none;
-  padding-left: 0;
-}
-
-.info-box li {
-  padding: 8px 0;
-  border-bottom: 1px solid #f1f3f4;
-}
-
-.info-box li:last-child {
-  border-bottom: none;
-}
-
 /* Loading states */
 .loading-container, .processing-overlay {
   display: flex;
