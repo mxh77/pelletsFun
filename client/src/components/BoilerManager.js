@@ -96,6 +96,7 @@ const BoilerManager = () => {
     try {
       setLoading(true);
       const response = await axios.get(`${API_URL}/api/boiler/import-history`);
+      console.log('📥 Données reçues du backend:', response.data.files.length, 'fichiers');
       
       // Adapter la structure des données pour l'interface
       const adaptedData = {
@@ -105,13 +106,20 @@ const BoilerManager = () => {
           totalEntries: response.data.totalEntries
         },
         files: response.data.files.map(file => {
+          console.log(`📧 Traitement du fichier: ${file.filename}`);
+          
           // Calculer la date effective basée sur les données du fichier
           let effectiveDate = new Date(file.lastImport); // Fallback sur date import
+          console.log(`📅 Date import par défaut: ${effectiveDate.toLocaleDateString('fr-FR')}`);
           
           // D'abord essayer d'extraire la date du nom du fichier (ex: touch_20251031.csv)
           const dateMatch = file.filename.match(/(\d{8})/);
+          console.log(`🔍 Recherche pattern dans "${file.filename}":`, dateMatch);
+          
           if (dateMatch) {
             const dateStr = dateMatch[1]; // ex: "20251031"
+            console.log(`🔍 Pattern trouvé: ${dateStr}`);
+            
             const year = dateStr.substring(0, 4);
             const month = dateStr.substring(4, 6);
             const day = dateStr.substring(6, 8);
@@ -123,10 +131,16 @@ const BoilerManager = () => {
               effectiveDate = extractedDate;
               console.log(`✅ Date effective pour ${file.filename}: ${effectiveDate.toLocaleDateString('fr-FR')}`);
             }
+          } else {
+            console.log(`❌ Aucun pattern de date trouvé dans "${file.filename}"`);
           }
+          
           // Sinon utiliser dateRange.max si disponible
-          else if (file.dateRange && file.dateRange.max) {
-            effectiveDate = new Date(file.dateRange.max);
+          if (!effectiveDate || effectiveDate.getTime() === new Date(file.lastImport).getTime()) {
+            if (file.dateRange && file.dateRange.max) {
+              effectiveDate = new Date(file.dateRange.max);
+              console.log(`🔄 Utilisation dateRange.max pour ${file.filename}: ${effectiveDate.toLocaleDateString('fr-FR')}`);
+            }
           }
           
           return {
