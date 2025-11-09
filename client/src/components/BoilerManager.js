@@ -117,8 +117,11 @@ const BoilerManager = () => {
             const day = dateStr.substring(6, 8);
             const extractedDate = new Date(`${year}-${month}-${day}`);
             
+            console.log(`🗓️ Fichier ${file.filename}: date extraite ${dateStr} → ${extractedDate.toISOString()}`);
+            
             if (!isNaN(extractedDate.getTime())) {
               effectiveDate = extractedDate;
+              console.log(`✅ Date effective pour ${file.filename}: ${effectiveDate.toLocaleDateString('fr-FR')}`);
             }
           }
           // Sinon utiliser dateRange.max si disponible
@@ -188,6 +191,7 @@ const BoilerManager = () => {
 
   // Catégorisation des fichiers par année/mois basée sur la date effective des données
   const categorizeFilesByDate = (files) => {
+    console.log('🔄 Début catégorisation des fichiers:', files.length);
     const categories = {};
     
     files.forEach(file => {
@@ -198,6 +202,9 @@ const BoilerManager = () => {
         year: 'numeric', 
         month: 'long' 
       });
+      
+      console.log(`📁 Fichier ${file.filename}: effectiveDate=${file.effectiveDate}, catégorie=${yearMonth} (${displayDate})`);
+      
       
       if (!categories[yearMonth]) {
         categories[yearMonth] = {
