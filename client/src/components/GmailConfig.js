@@ -80,23 +80,6 @@ const GmailConfig = () => {
     }
   };
 
-  const processEmails = async () => {
-    try {
-      setProcessing(true);
-      const response = await axios.post(`${API_URL}/api/boiler/gmail/process`);
-      
-      if (response.data.success) {
-        alert(`✅ ${response.data.message}`);
-      } else {
-        alert(`❌ ${response.data.error}`);
-      }
-    } catch (error) {
-      console.error('Erreur traitement emails:', error);
-      alert(`❌ Erreur: ${error.response?.data?.error || 'Erreur de connexion'}`);
-    }
-    setProcessing(false);
-  };
-
   if (status.loading) {
     return (
       <div className="gmail-config">
@@ -275,14 +258,6 @@ const GmailConfig = () => {
           <h3>🚀 Actions</h3>
           
           <div className="actions-buttons">
-            <button 
-              onClick={processEmails}
-              className="btn-process"
-              disabled={processing}
-            >
-              📧 Récupérer Emails Maintenant
-            </button>
-            
             <button 
               onClick={loadGmailConfig}
               className="btn-refresh"
