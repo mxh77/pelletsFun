@@ -368,35 +368,71 @@ class AutoImportService {
     }
   }
 
-  // Obtenir la configuration de pattern temporel
-  getImportInterval() {
-    // Utiliser la variable d'environnement ou valeur par défaut
-    return parseInt(process.env.BOILER_IMPORT_INTERVAL) || 1; // minutes
+  // Obtenir la configuration de pattern temporel depuis la base de données
+  async getImportInterval() {
+    try {
+      const BoilerConfig = require('../models/BoilerConfig');
+      let config = await BoilerConfig.findOne({ configType: 'main' });
+      
+      if (!config) {
+        // Créer une configuration par défaut si elle n'existe pas
+        config = new BoilerConfig({
+          nominalPower: 15,
+          pelletsPerKWh: 0.2,
+          importInterval: 1,
+          configType: 'main'
+        });
+        await config.save();
+      }
+      
+      return config.importInterval;
+    } catch (error) {
+      console.error('❌ Erreur récupération intervalle:', error);
+      return 1; // Valeur par défaut
+    }
   }
 
-  // Fonction pour vérifier si une ligne doit être conservée selon le pattern temporel
-  shouldKeepTimeEntry(timeString, importInterval) {
-    if (importInterval <= 1) return true; // Garder toutes les entrées si interval = 1 minute
+  // Fonction pour filtrer les données selon l'intervalle configuré (même logique que le contrôleur)
+  filterDataByInterval(data, intervalMinutes) {
+    if (intervalMinutes <= 1) {
+      return data; // Pas de filtrage si intervalle = 1 minute
+    }
+
+    const filtered = [];
+    let lastTime = null;
     
-    // Parser le temps au format HH:MM
-    const timeParts = timeString.split(':');
-    if (timeParts.length !== 2) return true; // Si format invalide, garder l'entrée
+    for (const entry of data) {
+      // Créer un timestamp complet avec date + time
+      const [hours, minutes] = (entry.time || '00:00').split(':').map(n => parseInt(n) || 0);
+      const entryTimestamp = new Date(entry.date);
+      entryTimestamp.setHours(hours, minutes, 0, 0);
+      
+      if (!lastTime) {
+        // Première entrée
+        filtered.push(entry);
+        lastTime = entryTimestamp;
+      } else {
+        // Vérifier si assez de temps s'est écoulé
+        const diffMinutes = (entryTimestamp - lastTime) / (1000 * 60);
+        
+        if (diffMinutes >= intervalMinutes) {
+          filtered.push(entry);
+          lastTime = entryTimestamp;
+        }
+      }
+    }
     
-    const minutes = parseInt(timeParts[1]);
-    if (isNaN(minutes)) return true; // Si minutes invalides, garder l'entrée
-    
-    // Ne garder que les entrées qui correspondent au pattern (ex: 0, 2, 4, 6... pour interval=2)
-    return minutes % importInterval === 0;
+    console.log(`📊 Filtrage temporel AutoImport: ${data.length} → ${filtered.length} entrées (intervalle: ${intervalMinutes}min)`);
+    return filtered;
   }
 
   // Fonction d'import réutilisable
   async importCSVFile(filePath, filename) {
     const results = [];
     let lineCount = 0;
-    let filteredCount = 0; // Compteur des lignes filtrées
 
-    // Obtenir l'intervalle de filtrage configuré
-    const importInterval = parseInt(this.getImportInterval());
+    // Obtenir l'intervalle de filtrage configuré depuis la base de données
+    const importInterval = await this.getImportInterval();
     console.log(`📊 Pattern d'import configuré: toutes les ${importInterval} minute(s)`);
 
     await new Promise((resolve, reject) => {
@@ -420,14 +456,8 @@ class AutoImportService {
             
             if (isNaN(date.getTime())) return;
 
-            // Extraire et vérifier le temps
+            // Extraire le temps
             const timeString = (data['Zeit '] || data.Zeit)?.trim() || '';
-            
-            // Appliquer le filtre temporel
-            if (!this.shouldKeepTimeEntry(timeString, importInterval)) {
-              filteredCount++;
-              return; // Ignorer cette entrée
-            }
 
             const boilerEntry = {
               date: date,
@@ -458,22 +488,39 @@ class AutoImportService {
         .on('error', reject);
     });
 
+    // Trier les données par date et heure avant filtrage
+    results.sort((a, b) => {
+      const timeA = new Date(a.date);
+      const [hoursA, minutesA] = (a.time || '00:00').split(':').map(n => parseInt(n) || 0);
+      timeA.setHours(hoursA, minutesA);
+      
+      const timeB = new Date(b.date);
+      const [hoursB, minutesB] = (b.time || '00:00').split(':').map(n => parseInt(n) || 0);
+      timeB.setHours(hoursB, minutesB);
+      
+      return timeA - timeB;
+    });
+
+    // Appliquer le filtrage temporel
+    const filteredResults = this.filterDataByInterval(results, importInterval);
+
     // Supprimer les données existantes pour ce fichier
     await BoilerData.deleteMany({ filename });
 
-    // Insérer les nouvelles données
-    if (results.length > 0) {
-      await BoilerData.insertMany(results);
+    // Insérer les nouvelles données filtrées
+    if (filteredResults.length > 0) {
+      await BoilerData.insertMany(filteredResults);
     }
 
-    console.log(`📈 Filtrage appliqué: ${lineCount} lignes lues, ${filteredCount} filtrées, ${results.length} conservées`);
+    console.log(`📈 Import terminé: ${lineCount} lignes lues, ${results.length} valides, ${filteredResults.length} conservées après filtrage`);
 
     return {
       success: true,
-      message: `${results.length} entrées importées depuis ${filename} (${filteredCount} filtrées selon pattern ${importInterval}min)`,
+      message: `${filteredResults.length} entrées importées depuis ${filename} (intervalle: ${importInterval}min)`,
       linesProcessed: lineCount,
-      validEntries: results.length,
-      filteredEntries: filteredCount,
+      validEntries: filteredResults.length,
+      originalEntries: results.length,
+      filteredEntries: results.length - filteredResults.length,
       importInterval: importInterval
     };
   }

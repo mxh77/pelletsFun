@@ -68,6 +68,40 @@ async function getBoilerConfigData() {
   }
 }
 
+// Fonction pour filtrer les données selon l'intervalle configuré
+function filterDataByInterval(data, intervalMinutes) {
+  if (intervalMinutes <= 1) {
+    return data; // Pas de filtrage si intervalle = 1 minute
+  }
+
+  const filtered = [];
+  let lastTime = null;
+  
+  for (const entry of data) {
+    // Créer un timestamp complet avec date + time
+    const [hours, minutes] = (entry.time || '00:00').split(':').map(n => parseInt(n) || 0);
+    const entryTimestamp = new Date(entry.date);
+    entryTimestamp.setHours(hours, minutes, 0, 0);
+    
+    if (!lastTime) {
+      // Première entrée
+      filtered.push(entry);
+      lastTime = entryTimestamp;
+    } else {
+      // Vérifier si assez de temps s'est écoulé
+      const diffMinutes = (entryTimestamp - lastTime) / (1000 * 60);
+      
+      if (diffMinutes >= intervalMinutes) {
+        filtered.push(entry);
+        lastTime = entryTimestamp;
+      }
+    }
+  }
+  
+  console.log(`📊 Filtrage temporel: ${data.length} → ${filtered.length} entrées (intervalle: ${intervalMinutes}min)`);
+  return filtered;
+}
+
 // Middleware d'upload
 exports.uploadCSV = upload.single('csvFile');
 
@@ -139,12 +173,33 @@ exports.importUploadedCSV = async (req, res) => {
 
     console.log(`Fichier CSV lu: ${lineCount} lignes, ${results.length} entrées valides`);
 
+    // Récupérer la configuration d'intervalle
+    const config = await getBoilerConfigData();
+    
+    // Trier les données par date et heure pour un filtrage temporel correct
+    results.sort((a, b) => {
+      const timeA = new Date(a.date);
+      const [hoursA, minutesA] = (a.time || '00:00').split(':').map(n => parseInt(n) || 0);
+      timeA.setHours(hoursA, minutesA);
+      
+      const timeB = new Date(b.date);
+      const [hoursB, minutesB] = (b.time || '00:00').split(':').map(n => parseInt(n) || 0);
+      timeB.setHours(hoursB, minutesB);
+      
+      return timeA - timeB;
+    });
+    
+    // Appliquer le filtrage temporel selon la configuration
+    const filteredResults = filterDataByInterval(results, config.importInterval);
+    
+    console.log(`📊 Données après filtrage: ${filteredResults.length} entrées (intervalle: ${config.importInterval}min)`);
+
     // Supprimer les données existantes pour ce fichier
     await BoilerData.deleteMany({ filename: originalFilename });
 
-    // Insérer les nouvelles données
-    if (results.length > 0) {
-      await BoilerData.insertMany(results);
+    // Insérer les nouvelles données filtrées
+    if (filteredResults.length > 0) {
+      await BoilerData.insertMany(filteredResults);
     }
 
     // Supprimer le fichier temporaire après import
@@ -152,9 +207,12 @@ exports.importUploadedCSV = async (req, res) => {
 
     res.json({
       success: true,
-      message: `${results.length} entrées importées depuis ${originalFilename}`,
+      message: `${filteredResults.length} entrées importées depuis ${originalFilename} (intervalle: ${config.importInterval}min)`,
       linesProcessed: lineCount,
-      validEntries: results.length,
+      validEntries: filteredResults.length,
+      originalEntries: results.length,
+      filteredEntries: results.length - filteredResults.length,
+      intervalMinutes: config.importInterval,
       filename: originalFilename
     });
 
@@ -232,19 +290,40 @@ exports.importBoilerCSV = async (req, res) => {
         .on('error', reject);
     });
 
+    // Récupérer la configuration d'intervalle
+    const config = await getBoilerConfigData();
+    
+    // Trier les données par date et heure pour un filtrage temporel correct
+    results.sort((a, b) => {
+      const timeA = new Date(a.date);
+      const [hoursA, minutesA] = (a.time || '00:00').split(':').map(n => parseInt(n) || 0);
+      timeA.setHours(hoursA, minutesA);
+      
+      const timeB = new Date(b.date);
+      const [hoursB, minutesB] = (b.time || '00:00').split(':').map(n => parseInt(n) || 0);
+      timeB.setHours(hoursB, minutesB);
+      
+      return timeA - timeB;
+    });
+    
+    // Appliquer le filtrage temporel selon la configuration
+    const filteredResults = filterDataByInterval(results, config.importInterval);
+
     // Supprimer les données existantes pour ce fichier
     await BoilerData.deleteMany({ filename });
 
-    // Insérer les nouvelles données
-    if (results.length > 0) {
-      await BoilerData.insertMany(results);
+    // Insérer les nouvelles données filtrées
+    if (filteredResults.length > 0) {
+      await BoilerData.insertMany(filteredResults);
     }
 
     res.json({
       success: true,
-      message: `${results.length} entrées importées depuis ${filename}`,
+      message: `${filteredResults.length} entrées importées depuis ${filename} (intervalle: ${config.importInterval}min)`,
       linesProcessed: lineCount,
-      validEntries: results.length
+      validEntries: filteredResults.length,
+      originalEntries: results.length,
+      intervalMinutes: config.importInterval
     });
 
   } catch (error) {
