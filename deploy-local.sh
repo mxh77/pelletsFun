@@ -8,9 +8,6 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-# Récupérer le message de commit depuis le paramètre
-COMMIT_MESSAGE="$1"
-
 echo -e "${BLUE}🚀 Déploiement automatique PelletsFun${NC}"
 echo "========================================"
 
@@ -36,17 +33,12 @@ if [ "$SKIP_COMMIT" = false ]; then
     git status --short
     echo ""
     
-    # Utiliser le message passé en paramètre ou demander
+    # Demander le message de commit
+    read -p "💬 Message de commit : " COMMIT_MESSAGE
+    
     if [ -z "$COMMIT_MESSAGE" ]; then
-        read -p "💬 Message de commit : " COMMIT_MESSAGE
-        
-        if [ -z "$COMMIT_MESSAGE" ]; then
-            echo -e "${RED}❌ Message de commit obligatoire${NC}"
-            echo "Usage: $0 \"Message de commit\""
-            exit 1
-        fi
-    else
-        echo -e "${YELLOW}💬 Message de commit : ${COMMIT_MESSAGE}${NC}"
+        echo -e "${RED}❌ Message de commit obligatoire${NC}"
+        exit 1
     fi
     
     echo -e "${BLUE}📦 Git add...${NC}"
