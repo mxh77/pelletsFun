@@ -166,8 +166,6 @@ class GmailService {
 
     try {
       const {
-        maxResults,
-        daysBack,
         dateFrom = null,
         dateTo = null,
         sender = null,
@@ -191,7 +189,7 @@ class GmailService {
         }
       }
 
-      // Ajouter filtre de date - soit période personnalisée, soit daysBack
+      // Ajouter filtre de date si période personnalisée spécifiée
       if (dateFrom || dateTo) {
         console.log('🗓️ Utilisation période personnalisée:', { dateFrom, dateTo });
         
@@ -204,20 +202,14 @@ class GmailService {
           const toStr = dateTo.toISOString().split('T')[0].replace(/-/g, '/');
           query += ` before:${toStr}`;
         }
-      } else {
-        console.log('🗓️ Utilisation daysBack:', daysBack);
-        const dateBack = new Date();
-        dateBack.setDate(dateBack.getDate() - daysBack);
-        const dateStr = dateBack.toISOString().split('T')[0].replace(/-/g, '/');
-        query += ` after:${dateStr}`;
       }
 
       console.log('🔍 Recherche Gmail:', query);
 
       const searchResponse = await this.gmail.users.messages.list({
         userId: 'me',
-        q: query,
-        maxResults: maxResults
+        q: query
+        // Pas de limite maxResults - récupérer tous les emails correspondants
       });
 
       const messages = searchResponse.data.messages || [];

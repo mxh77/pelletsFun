@@ -645,7 +645,7 @@ exports.getGmailConfig = async (req, res) => {
 
 exports.updateGmailConfig = async (req, res) => {
   try {
-    const { enabled, sender, subject, senders, maxResults, daysBack } = req.body;
+    const { enabled, sender, subject, senders } = req.body;
     
     // Gérer la migration de l'ancien format vers le nouveau
     let sendersArray = senders;
@@ -663,7 +663,6 @@ exports.updateGmailConfig = async (req, res) => {
       enabled: enabled !== undefined ? enabled : autoImportService.config.gmail?.enabled,
       senders: sendersArray,
       subject: subject || autoImportService.config.gmail?.subject
-      // Suppression de maxResults et daysBack (centralisés)
     });
     
     console.log('✅ Configuration Gmail sauvegardée:', updatedConfig.toObject ? updatedConfig.toObject() : updatedConfig);

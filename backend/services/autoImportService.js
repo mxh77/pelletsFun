@@ -119,9 +119,7 @@ class AutoImportService {
       console.log('📧 Récupération des emails Okofen depuis Gmail...');
       
       // Déterminer les paramètres de recherche
-      let searchParams = {
-        maxResults: this.config.gmail.maxResults // Toujours inclure maxResults
-      };
+      let searchParams = {};
       
       if (options.period && (options.period.dateFrom || options.period.dateTo)) {
         // Utiliser la période spécifiée

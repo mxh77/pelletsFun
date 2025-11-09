@@ -27,6 +27,13 @@ npm install --production || {
     exit 1
 }
 
+# Nettoyage configuration Gmail (suppression champs obsolètes)
+echo -e "${BLUE}🧹 Nettoyage configuration Gmail...${NC}"
+npm run clean-gmail-config || {
+    echo -e "${RED}⚠️ Avertissement: Échec du nettoyage configuration Gmail${NC}"
+    # Ne pas faire échouer le déploiement pour cela
+}
+
 # Frontend
 echo -e "${BLUE}🎨 Rebuild du frontend...${NC}"
 cd ../client
