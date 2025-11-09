@@ -95,10 +95,7 @@ const BoilerManager = () => {
   const loadImportHistory = async () => {
     try {
       setLoading(true);
-      alert('🚀 DEBUG: Début loadImportHistory()');
       const response = await axios.get(`${API_URL}/api/boiler/import-history`);
-      console.error('📥 DEBUG: Données reçues du backend:', response.data.files.length, 'fichiers');
-      alert('📥 DEBUG: Reçu ' + response.data.files.length + ' fichiers du backend');
       
       // Adapter la structure des données pour l'interface
       const adaptedData = {
@@ -207,8 +204,6 @@ const BoilerManager = () => {
 
   // Catégorisation des fichiers par année/mois basée sur la date effective des données
   const categorizeFilesByDate = (files) => {
-    console.error('🔄 DEBUG: Début catégorisation des fichiers:', files.length);
-    alert('🔄 DEBUG: Catégorisation de ' + files.length + ' fichiers');
     const categories = {};
     
     files.forEach(file => {
@@ -219,8 +214,6 @@ const BoilerManager = () => {
         year: 'numeric', 
         month: 'long' 
       });
-      
-      console.error(`📁 DEBUG: Fichier ${file.filename}: effectiveDate=${file.effectiveDate}, catégorie=${yearMonth} (${displayDate})`);
       
       
       if (!categories[yearMonth]) {
@@ -794,6 +787,20 @@ const BoilerManager = () => {
 
                   {importHistory.files && importHistory.files.length > 0 && (
                     <div className="history-categorized">
+                      {/* DEBUG: Informations sur le premier fichier */}
+                      <div style={{background: 'yellow', padding: '10px', margin: '10px 0', border: '2px solid red'}}>
+                        <h4>🔍 DEBUG - Premier fichier:</h4>
+                        <pre>{JSON.stringify(importHistory.files[0], null, 2)}</pre>
+                        {importHistory.files[0] && (
+                          <div>
+                            <p><strong>Nom:</strong> {importHistory.files[0].filename}</p>
+                            <p><strong>effectiveDate:</strong> {importHistory.files[0].effectiveDate || 'undefined'}</p>
+                            <p><strong>lastImportDate:</strong> {importHistory.files[0].lastImportDate}</p>
+                            <p><strong>Date utilisée:</strong> {new Date(importHistory.files[0].effectiveDate || importHistory.files[0].lastImportDate).toLocaleDateString('fr-FR')}</p>
+                          </div>
+                        )}
+                      </div>
+                      
                       {categorizeFilesByDate(importHistory.files).map((category) => (
                         <div key={category.key} className="history-category">
                           <div 
