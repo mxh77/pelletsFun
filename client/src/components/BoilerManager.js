@@ -95,8 +95,10 @@ const BoilerManager = () => {
   const loadImportHistory = async () => {
     try {
       setLoading(true);
+      alert('🚀 DEBUG: Début loadImportHistory()');
       const response = await axios.get(`${API_URL}/api/boiler/import-history`);
       console.error('📥 DEBUG: Données reçues du backend:', response.data.files.length, 'fichiers');
+      alert('📥 DEBUG: Reçu ' + response.data.files.length + ' fichiers du backend');
       
       // Adapter la structure des données pour l'interface
       const adaptedData = {
@@ -206,6 +208,7 @@ const BoilerManager = () => {
   // Catégorisation des fichiers par année/mois basée sur la date effective des données
   const categorizeFilesByDate = (files) => {
     console.error('🔄 DEBUG: Début catégorisation des fichiers:', files.length);
+    alert('🔄 DEBUG: Catégorisation de ' + files.length + ' fichiers');
     const categories = {};
     
     files.forEach(file => {
