@@ -746,7 +746,7 @@ const BoilerManager = () => {
 
             {/* Historique */}
             <div className="boiler-subsection">
-              <h3>📋 Historique des Imports</h3>
+              <h3>📋 Histosssssrique des Imports</h3>
               <div className="history-controls">
                 <button 
                   onClick={() => {
