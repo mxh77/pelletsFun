@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import './BoilerManager.css';
+import './BoilerManagerRestructured.css';
+// Force rebuild - Interface restructurée en 3 sections pliables - Version 2.0
 
 const BoilerManager = () => {
   // États principaux
@@ -19,7 +20,6 @@ const BoilerManager = () => {
   // États pour l'import manuel
   const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
   const [manualImportPeriod, setManualImportPeriod] = useState({ dateFrom: '', dateTo: '' });
-  const [manualImportSenders, setManualImportSenders] = useState(['']);
 
   // États pour les sections pliables
   const [expandedSections, setExpandedSections] = useState({
@@ -27,6 +27,9 @@ const BoilerManager = () => {
     importTraitement: true,
     analyseHistorique: false
   });
+  
+  // État pour les catégories d'historique
+  const [expandedCategories, setExpandedCategories] = useState({});
 
   const API_URL = process.env.REACT_APP_API_URL || '';
 
@@ -40,16 +43,29 @@ const BoilerManager = () => {
 
   // Chargement des données initiales
   useEffect(() => {
+    loadConfig();
     loadStats();
     loadAutoImportStatus();
     loadCronStatus();
   }, []);
 
+  const loadConfig = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/boiler/config`);
+      if (response.data.success) {
+        setConfig(response.data.config);
+      }
+    } catch (error) {
+      console.error('Erreur chargement config:', error);
+      // Garder les valeurs par défaut en cas d'erreur
+    }
+  };
+
   const loadStats = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/boiler/stats`);
       setStats(response.data);
-      setConfig(response.data.config);
+      // Ne plus récupérer la config depuis stats, elle est chargée séparément
     } catch (error) {
       console.error('Erreur chargement stats:', error);
     }
@@ -80,7 +96,76 @@ const BoilerManager = () => {
     try {
       setLoading(true);
       const response = await axios.get(`${API_URL}/api/boiler/import-history`);
-      setImportHistory(response.data);
+      
+      // Adapter la structure des données pour l'interface
+      const adaptedData = {
+        success: response.data.success,
+        summary: {
+          uniqueFiles: response.data.totalFiles,
+          totalEntries: response.data.totalEntries
+        },
+        files: response.data.files.map(file => {
+          console.error(`📧 DEBUG: Traitement du fichier: ${file.filename}`);
+          
+          // Calculer la date effective basée sur les données du fichier
+          let effectiveDate = new Date(file.lastImport); // Fallback sur date import
+          console.error(`📅 DEBUG: Date import par défaut: ${effectiveDate.toLocaleDateString('fr-FR')}`);
+          
+          // D'abord essayer d'extraire la date du nom du fichier (ex: touch_20251031.csv)
+          const dateMatch = file.filename.match(/(\d{8})/);
+          console.error(`🔍 DEBUG: Recherche pattern dans "${file.filename}":`, dateMatch);
+          
+          if (dateMatch) {
+            const dateStr = dateMatch[1]; // ex: "20251031"
+            console.error(`🔍 DEBUG: Pattern trouvé: ${dateStr}`);
+            
+            const year = dateStr.substring(0, 4);
+            const month = dateStr.substring(4, 6);
+            const day = dateStr.substring(6, 8);
+            const extractedDate = new Date(`${year}-${month}-${day}`);
+            
+            console.error(`🗓️ DEBUG: Fichier ${file.filename}: date extraite ${dateStr} → ${extractedDate.toISOString()}`);
+            
+            if (!isNaN(extractedDate.getTime())) {
+              effectiveDate = extractedDate;
+              console.error(`✅ DEBUG: Date effective pour ${file.filename}: ${effectiveDate.toLocaleDateString('fr-FR')}`);
+            }
+          } else {
+            console.error(`❌ DEBUG: Aucun pattern de date trouvé dans "${file.filename}"`);
+          }
+          
+          // Sinon utiliser dateRange.max si disponible
+          if (!effectiveDate || effectiveDate.getTime() === new Date(file.lastImport).getTime()) {
+            if (file.dateRange && file.dateRange.max) {
+              effectiveDate = new Date(file.dateRange.max);
+              console.error(`🔄 DEBUG: Utilisation dateRange.max pour ${file.filename}: ${effectiveDate.toLocaleDateString('fr-FR')}`);
+            }
+          }
+          
+          return {
+            filename: file.filename,
+            entryCount: file.totalEntries,
+            lastImportDate: file.lastImport,
+            effectiveDate: effectiveDate,
+            avgFileSize: file.fileSize ? `${file.fileSize} KB` : 'N/A',
+            dateRange: file.dateRange,
+            avgOutsideTemp: file.avgOutsideTemp,
+            status: file.status
+          };
+        })
+      };
+      
+      setImportHistory(adaptedData);
+      
+      // Auto-ouvrir les 2 catégories les plus récentes
+      if (adaptedData.files && adaptedData.files.length > 0) {
+        const categories = categorizeFilesByDate(adaptedData.files);
+        const autoExpand = {};
+        categories.slice(0, 2).forEach(category => {
+          autoExpand[category.key] = true;
+        });
+        setExpandedCategories(prev => ({ ...prev, ...autoExpand }));
+      }
     } catch (error) {
       console.error('Erreur chargement historique:', error);
     } finally {
@@ -88,21 +173,75 @@ const BoilerManager = () => {
     }
   };
 
-  // Fonctions de gestion des expéditeurs multiples
-  const addSenderField = () => {
-    setManualImportSenders(prev => [...prev, '']);
+  // Suppression d'un import spécifique
+  const deleteImport = async (filename) => {
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer l'import "${filename}" ?\n\nCette action est irréversible et supprimera toutes les données associées à ce fichier.`)) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await axios.delete(`${API_URL}/api/boiler/import/${encodeURIComponent(filename)}`);
+      
+      if (response.data.success) {
+        setImportResult({
+          success: true,
+          message: `Import "${filename}" supprimé avec succès. ${response.data.deletedEntries} entrées supprimées.`
+        });
+        
+        // Recharger l'historique et les stats
+        await loadImportHistory();
+        await loadStats();
+      }
+    } catch (error) {
+      console.error('Erreur suppression import:', error);
+      setImportResult({
+        error: `Erreur lors de la suppression de "${filename}": ${error.response?.data?.error || error.message}`
+      });
+    }
+    setLoading(false);
   };
 
-  const removeSenderField = (index) => {
-    setManualImportSenders(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const updateSender = (index, value) => {
-    setManualImportSenders(prev => {
-      const newSenders = [...prev];
-      newSenders[index] = value;
-      return newSenders;
+  // Catégorisation des fichiers par année/mois basée sur la date effective des données
+  const categorizeFilesByDate = (files) => {
+    const categories = {};
+    
+    files.forEach(file => {
+      // Utiliser la date effective des données du fichier (pas la date d'import)
+      const date = new Date(file.effectiveDate || file.lastImportDate);
+      const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const displayDate = date.toLocaleDateString('fr-FR', { 
+        year: 'numeric', 
+        month: 'long' 
+      });
+      
+      
+      if (!categories[yearMonth]) {
+        categories[yearMonth] = {
+          displayDate,
+          files: [],
+          totalEntries: 0,
+          totalFiles: 0
+        };
+      }
+      
+      categories[yearMonth].files.push(file);
+      categories[yearMonth].totalEntries += file.entryCount || 0;
+      categories[yearMonth].totalFiles += 1;
     });
+    
+    // Trier par date décroissante
+    return Object.entries(categories)
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([key, value]) => ({ ...value, key }));
+  };
+
+  // Basculer l'affichage d'une catégorie
+  const toggleCategory = (categoryKey) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [categoryKey]: !prev[categoryKey]
+    }));
   };
 
   // Fonctions principales
@@ -111,12 +250,14 @@ const BoilerManager = () => {
     try {
       const response = await axios.put(`${API_URL}/api/boiler/config`, config);
       if (response.data.success) {
-        setImportResult({ success: true, message: 'Configuration mise à jour avec succès' });
+        setImportResult({ success: true, message: 'Configuration sauvegardée en base de données' });
+        // Recharger la configuration depuis la base de données
+        await loadConfig();
         await loadStats();
       }
     } catch (error) {
       console.error('Erreur mise à jour config:', error);
-      setImportResult({ error: 'Erreur lors de la mise à jour de la configuration' });
+      setImportResult({ error: 'Erreur lors de la sauvegarde de la configuration' });
     }
     setLoading(false);
   };
@@ -223,11 +364,6 @@ const BoilerManager = () => {
         periodParams.dateTo = manualImportPeriod.dateTo;
       }
 
-      const validSenders = manualImportSenders.filter(sender => sender.trim() !== '');
-      if (validSenders.length > 0) {
-        periodParams.senders = validSenders;
-      }
-
       const response = await axios.post(`${API_URL}/api/boiler/import/manual-trigger`, periodParams);
       
       const result = response.data;
@@ -280,6 +416,7 @@ const BoilerManager = () => {
       <div className="boiler-header">
         <h2>🔥 Gestion Données Chaudière</h2>
         <p>Configuration, import et analyse des données de votre chaudière Okofen</p>
+        {/* Force rebuild timestamp: 2025-11-08 */}
       </div>
 
       {/* 🔧 SECTION 1: CONFIGURATION */}
@@ -433,43 +570,6 @@ const BoilerManager = () => {
                 </div>
                 <div className="period-help">
                   💡 <strong>Sans période :</strong> Utilise les paramètres Gmail configurés
-                </div>
-              </div>
-              
-              {/* Sélection d'expéditeurs multiples */}
-              <div className="manual-import-senders">
-                <h4>📧 Adresses Expéditrices (Optionnel)</h4>
-                <div className="senders-list">
-                  {manualImportSenders.map((sender, index) => (
-                    <div key={index} className="sender-input-group">
-                      <input 
-                        type="email"
-                        value={sender}
-                        onChange={(e) => updateSender(index, e.target.value)}
-                        placeholder="ex: chaudiere@mondomaine.com"
-                        className="sender-input"
-                      />
-                      {manualImportSenders.length > 1 && (
-                        <button 
-                          type="button"
-                          onClick={() => removeSenderField(index)}
-                          className="btn-remove-sender"
-                        >
-                          ❌
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  <button 
-                    type="button"
-                    onClick={addSenderField}
-                    className="btn-add-sender"
-                  >
-                    ➕ Ajouter une Adresse
-                  </button>
-                </div>
-                <div className="senders-help">
-                  💡 <strong>Sans adresse :</strong> Utilise l'expéditeur configuré dans Gmail
                 </div>
               </div>
               
@@ -646,7 +746,7 @@ const BoilerManager = () => {
 
             {/* Historique */}
             <div className="boiler-subsection">
-              <h3>📋 Historiqqqqqqqque des Imports</h3>
+              <h3>📋 Histosssssrique des Imports</h3>
               <div className="history-controls">
                 <button 
                   onClick={() => {
@@ -686,7 +786,7 @@ const BoilerManager = () => {
                   </div>
 
                   {importHistory.files && importHistory.files.length > 0 && (
-                    <div>
+                    <div className="history-categorized">
                       {/* DEBUG: Informations sur le premier fichier */}
                       <div style={{background: 'yellow', padding: '10px', margin: '10px 0', border: '2px solid red'}}>
                         <h4>🔍 DEBUG - Premier fichier:</h4>
@@ -694,37 +794,72 @@ const BoilerManager = () => {
                         {importHistory.files[0] && (
                           <div>
                             <p><strong>Nom:</strong> {importHistory.files[0].filename}</p>
-                            <p><strong>entryCount:</strong> {importHistory.files[0].entryCount}</p>
+                            <p><strong>effectiveDate:</strong> {importHistory.files[0].effectiveDate || 'undefined'}</p>
                             <p><strong>lastImportDate:</strong> {importHistory.files[0].lastImportDate}</p>
-                            <p><strong>Structure complète:</strong> Voir JSON ci-dessus</p>
+                            <p><strong>Date utilisée:</strong> {new Date(importHistory.files[0].effectiveDate || importHistory.files[0].lastImportDate).toLocaleDateString('fr-FR')}</p>
                           </div>
                         )}
                       </div>
                       
-                      <div className="history-table-container">
-                      <table className="history-table">
-                        <thead>
-                          <tr>
-                            <th>📁 Fichier</th>
-                            <th>📊 Entrées</th>
-                            <th>📅 Date Import</th>
-                            <th>📏 Taille</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {importHistory.files.map((file, index) => (
-                            <tr key={index}>
-                              <td className="file-name">{file.filename}</td>
-                              <td className="entry-count">{file.entryCount?.toLocaleString()}</td>
-                              <td className="import-date">
-                                {new Date(file.lastImportDate).toLocaleString('fr-FR')}
-                              </td>
-                              <td className="file-size">{file.avgFileSize || 'N/A'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      </div>
+                      {categorizeFilesByDate(importHistory.files).map((category) => (
+                        <div key={category.key} className="history-category">
+                          <div 
+                            className="category-header"
+                            onClick={() => toggleCategory(category.key)}
+                          >
+                            <span className="category-toggle">
+                              {expandedCategories[category.key] ? '🔽' : '▶️'}
+                            </span>
+                            <h4 className="category-title">📅 {category.displayDate}</h4>
+                            <div className="category-stats">
+                              <span className="category-stat">
+                                📁 {category.totalFiles} fichier{category.totalFiles > 1 ? 's' : ''}
+                              </span>
+                              <span className="category-stat">
+                                📊 {category.totalEntries.toLocaleString()} entrée{category.totalEntries > 1 ? 's' : ''}
+                              </span>
+                            </div>
+                          </div>
+
+                          {expandedCategories[category.key] && (
+                            <div className="category-content">
+                              <table className="history-table">
+                                <thead>
+                                  <tr>
+                                    <th>📁 Fichier</th>
+                                    <th>📊 Entrées</th>
+                                    <th>📅 Date Import</th>
+                                    <th>📏 Taille</th>
+                                    <th>🗑️ Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {category.files.map((file, index) => (
+                                    <tr key={index}>
+                                      <td className="file-name">{file.filename}</td>
+                                      <td className="entry-count">{file.entryCount?.toLocaleString()}</td>
+                                      <td className="import-date">
+                                        {new Date(file.lastImportDate).toLocaleString('fr-FR')}
+                                      </td>
+                                      <td className="file-size">{file.avgFileSize || 'N/A'}</td>
+                                      <td className="file-actions">
+                                        <button
+                                          onClick={() => deleteImport(file.filename)}
+                                          className="btn-delete-import"
+                                          title={`Supprimer l'import "${file.filename}"`}
+                                          disabled={loading}
+                                        >
+                                          🗑️
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
