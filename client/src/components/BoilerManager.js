@@ -80,7 +80,50 @@ const BoilerManager = () => {
     try {
       setLoading(true);
       const response = await axios.get(`${API_URL}/api/boiler/import-history`);
-      setImportHistory(response.data);
+      
+      // Adapter la structure des données pour l'interface
+      const adaptedData = {
+        success: response.data.success,
+        summary: {
+          uniqueFiles: response.data.totalFiles,
+          totalEntries: response.data.totalEntries
+        },
+        files: response.data.files.map(file => {
+          // Calculer la date effective basée sur les données du fichier
+          let effectiveDate = new Date(file.lastImport); // Fallback sur date import
+          
+          // D'abord essayer d'extraire la date du nom du fichier (ex: touch_20251031.csv)
+          const dateMatch = file.filename.match(/(\d{8})/);
+          if (dateMatch) {
+            const dateStr = dateMatch[1]; // ex: "20251031"
+            const year = dateStr.substring(0, 4);
+            const month = dateStr.substring(4, 6);
+            const day = dateStr.substring(6, 8);
+            const extractedDate = new Date(`${year}-${month}-${day}`);
+            
+            if (!isNaN(extractedDate.getTime())) {
+              effectiveDate = extractedDate;
+            }
+          }
+          // Sinon utiliser dateRange.max si disponible
+          else if (file.dateRange && file.dateRange.max) {
+            effectiveDate = new Date(file.dateRange.max);
+          }
+          
+          return {
+            filename: file.filename,
+            entryCount: file.totalEntries,
+            lastImportDate: file.lastImport,
+            effectiveDate: effectiveDate,
+            avgFileSize: file.fileSize ? `${file.fileSize} KB` : 'N/A',
+            dateRange: file.dateRange,
+            avgOutsideTemp: file.avgOutsideTemp,
+            status: file.status
+          };
+        })
+      };
+      
+      setImportHistory(adaptedData);
     } catch (error) {
       console.error('Erreur chargement historique:', error);
     } finally {
@@ -690,15 +733,20 @@ const BoilerManager = () => {
                       {/* DEBUG: Informations sur le premier fichier */}
                       <div style={{background: 'yellow', padding: '10px', margin: '10px 0', border: '2px solid red'}}>
                         <h4>🔍 DEBUG - Premier fichier:</h4>
-                        <pre>{JSON.stringify(importHistory.files[0], null, 2)}</pre>
                         {importHistory.files[0] && (
                           <div>
                             <p><strong>Nom:</strong> {importHistory.files[0].filename}</p>
                             <p><strong>entryCount:</strong> {importHistory.files[0].entryCount}</p>
                             <p><strong>lastImportDate:</strong> {importHistory.files[0].lastImportDate}</p>
-                            <p><strong>Structure complète:</strong> Voir JSON ci-dessus</p>
+                            <p><strong>effectiveDate:</strong> {importHistory.files[0].effectiveDate?.toLocaleDateString('fr-FR')}</p>
+                            <p><strong>Date affichée:</strong> {new Date(importHistory.files[0].lastImportDate).toLocaleString('fr-FR')}</p>
+                            <p><strong>Pattern de date dans nom:</strong> {importHistory.files[0].filename.match(/(\d{8})/) ? 'Trouvé: ' + importHistory.files[0].filename.match(/(\d{8})/)[1] : 'Aucun'}</p>
                           </div>
                         )}
+                        <details>
+                          <summary>Structure complète (cliquez pour voir)</summary>
+                          <pre>{JSON.stringify(importHistory.files[0], null, 2)}</pre>
+                        </details>
                       </div>
                       
                       <div className="history-table-container">
