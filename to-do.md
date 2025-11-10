@@ -1,2 +1,2 @@
 - Import données asynchrone
-- Suppression adresses expéditrices dans "Import Manuel depuis Gmail"
+- ✅ Suppression adresses expéditrices dans "Import Manuel depuis Gmail" (Terminé - gestion centralisée dans onglet Gmail Auto)

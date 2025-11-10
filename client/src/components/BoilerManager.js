@@ -19,8 +19,6 @@ const BoilerManager = () => {
   // États pour l'import manuel
   const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
   const [manualImportPeriod, setManualImportPeriod] = useState({ dateFrom: '', dateTo: '' });
-  const [manualImportSenders, setManualImportSenders] = useState(['']);
-  const [gmailConfig, setGmailConfig] = useState(null);
 
   // États pour les sections pliables
   const [expandedSections, setExpandedSections] = useState({
@@ -44,7 +42,6 @@ const BoilerManager = () => {
     loadStats();
     loadAutoImportStatus();
     loadCronStatus();
-    loadGmailConfig();
   }, []);
 
   const loadStats = async () => {
@@ -75,21 +72,6 @@ const BoilerManager = () => {
       }
     } catch (error) {
       console.error('Erreur chargement cron status:', error);
-    }
-  };
-
-  const loadGmailConfig = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/api/boiler/gmail/config`);
-      if (response.data.success && response.data.config) {
-        setGmailConfig(response.data.config);
-        // Charger les adresses expéditrices sauvegardées
-        if (response.data.config.senders && response.data.config.senders.length > 0) {
-          setManualImportSenders(response.data.config.senders);
-        }
-      }
-    } catch (error) {
-      console.error('Erreur chargement config Gmail:', error);
     }
   };
 
@@ -145,39 +127,6 @@ const BoilerManager = () => {
       console.error('Erreur chargement historique:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Fonctions de gestion des expéditeurs multiples
-  const addSenderField = () => {
-    setManualImportSenders(prev => [...prev, '']);
-  };
-
-  const removeSenderField = async (index) => {
-    const newSenders = manualImportSenders.filter((_, i) => i !== index);
-    setManualImportSenders(newSenders);
-    await saveSendersConfig(newSenders);
-  };
-
-  const updateSender = async (index, value) => {
-    const newSenders = [...manualImportSenders];
-    newSenders[index] = value;
-    setManualImportSenders(newSenders);
-    
-    // Sauvegarder automatiquement si l'adresse est valide
-    if (value.includes('@') && value.includes('.')) {
-      await saveSendersConfig(newSenders);
-    }
-  };
-
-  const saveSendersConfig = async (senders) => {
-    try {
-      const validSenders = senders.filter(sender => sender.trim() !== '');
-      await axios.put(`${API_URL}/api/boiler/gmail/config`, {
-        senders: validSenders
-      });
-    } catch (error) {
-      console.error('Erreur sauvegarde adresses:', error);
     }
   };
 
@@ -299,11 +248,6 @@ const BoilerManager = () => {
         periodParams.dateTo = manualImportPeriod.dateTo;
       }
 
-      const validSenders = manualImportSenders.filter(sender => sender.trim() !== '');
-      if (validSenders.length > 0) {
-        periodParams.senders = validSenders;
-      }
-
       const response = await axios.post(`${API_URL}/api/boiler/import/manual-trigger`, periodParams);
       
       const result = response.data;
@@ -347,6 +291,50 @@ const BoilerManager = () => {
     } catch (error) {
       console.error('Erreur calcul:', error);
       setImportResult({ error: error.response?.data?.error || 'Erreur lors du calcul' });
+    }
+    setLoading(false);
+  };
+
+  const deleteImportFile = async (filename) => {
+    if (!filename) {
+      setImportResult({ error: 'Nom de fichier manquant' });
+      return;
+    }
+
+    // Demander confirmation
+    const confirmDelete = window.confirm(
+      `⚠️ Êtes-vous sûr de vouloir supprimer l'import "${filename}" ?\n\n` +
+      `Cette action supprimera :\n` +
+      `• Toutes les données importées de ce fichier\n` +
+      `• Le fichier physique (si présent)\n\n` +
+      `Cette action est irréversible !`
+    );
+
+    if (!confirmDelete) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await axios.delete(`${API_URL}/api/boiler/import/${encodeURIComponent(filename)}`);
+      
+      if (response.data.success) {
+        setImportResult({ 
+          success: true, 
+          message: `✅ Import "${filename}" supprimé avec succès\n📊 ${response.data.deletedEntries} entrées supprimées`
+        });
+        
+        // Recharger l'historique et les stats
+        await loadImportHistory();
+        await loadStats();
+      } else {
+        setImportResult({ error: response.data.error || 'Erreur lors de la suppression' });
+      }
+    } catch (error) {
+      console.error('Erreur suppression import:', error);
+      setImportResult({ 
+        error: error.response?.data?.error || 'Erreur lors de la suppression de l\'import' 
+      });
     }
     setLoading(false);
   };
@@ -486,7 +474,7 @@ const BoilerManager = () => {
               
               {/* Sélection de période */}
               <div className="manual-import-period">
-                <h4>🗓️ Période de Recherche (Optionnel)</h4>
+                <h4>🗓️ Période par Date de Fichier (Optionnel)</h4>
                 <div className="period-inputs">
                   <div className="date-input-group">
                     <label>📅 Du :</label>
@@ -508,54 +496,8 @@ const BoilerManager = () => {
                   </div>
                 </div>
                 <div className="period-help">
-                  💡 <strong>Sans période :</strong> Utilise les paramètres Gmail configurés
-                </div>
-              </div>
-              
-              {/* Sélection d'expéditeurs multiples */}
-              <div className="manual-import-senders">
-                <h4>📧 Adresses Expéditrices (Optionnel)</h4>
-                <div className="senders-list">
-                  {manualImportSenders.map((sender, index) => (
-                    <div key={index} className="sender-input-group">
-                      <input 
-                        type="email"
-                        value={sender}
-                        onChange={(e) => updateSender(index, e.target.value)}
-                        placeholder="ex: chaudiere@mondomaine.com"
-                        className="sender-input"
-                      />
-                      {manualImportSenders.length > 1 && (
-                        <button 
-                          type="button"
-                          onClick={() => removeSenderField(index)}
-                          className="btn-remove-sender"
-                        >
-                          ❌
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  <div className="sender-controls">
-                    <button 
-                      type="button"
-                      onClick={addSenderField}
-                      className="btn-add-sender"
-                    >
-                      ➕ Ajouter une Adresse
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={() => saveSendersConfig(manualImportSenders)}
-                      className="btn-save-senders"
-                    >
-                      💾 Sauvegarder Adresses
-                    </button>
-                  </div>
-                </div>
-                <div className="senders-help">
-                  💡 <strong>Sans adresse :</strong> Utilise l'expéditeur configuré dans Gmail<br/>
-                  🔄 <strong>Sauvegarde automatique</strong> quand vous tapez une adresse email valide
+                  💡 <strong>Filtrage par date du fichier</strong> (ex: touch_20251102.csv = 02/11/2025)<br/>
+                  📧 <strong>Sans période :</strong> Import de tous les fichiers récents selon config Gmail
                 </div>
               </div>
               
@@ -781,6 +723,7 @@ const BoilerManager = () => {
                             <th>📊 Entrées</th>
                             <th>📅 Date Import</th>
                             <th>📏 Taille</th>
+                            <th>⚙️ Actions</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -792,6 +735,16 @@ const BoilerManager = () => {
                                 {new Date(file.lastImportDate).toLocaleString('fr-FR')}
                               </td>
                               <td className="file-size">{file.avgFileSize || 'N/A'}</td>
+                              <td className="actions-cell">
+                                <button 
+                                  onClick={() => deleteImportFile(file.filename)}
+                                  disabled={loading}
+                                  className="btn-delete-import"
+                                  title={`Supprimer l'import "${file.filename}"`}
+                                >
+                                  🗑️
+                                </button>
+                              </td>
                             </tr>
                           ))}
                         </tbody>

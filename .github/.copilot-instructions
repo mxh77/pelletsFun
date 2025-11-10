@@ -44,6 +44,7 @@ Ce projet est une application de gestion de données de chaudière à pellets av
 **OBLIGATOIRE** : Proposer un git add + git commit avec un message en français approprié.
 **INTERDIT** : Ne jamais proposer de déploiement local ou de production après une évolution.
 **INTERDIT** : Ne jamais proposer de build après une évolution (ex.: `npm run build`).
+**INTERDIT** : Ne jamais créer de documentation sans mon consentement.
 
 Format des commandes recommandé :
 ```bash

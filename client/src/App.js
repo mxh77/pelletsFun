@@ -13,6 +13,7 @@ import EditRechargeForm from './components/EditRechargeForm';
 import SeasonManager from './components/SeasonManager';
 import BoilerManager from './components/BoilerManager';
 import GmailConfig from './components/GmailConfig';
+import UpdateNotification from './components/UpdateNotification';
 import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
@@ -20,6 +21,7 @@ function App() {
   return (
     <Router basename="/">
       <div className="App">
+        <UpdateNotification />
         <Navbar bg="dark" variant="dark" expand="lg" className="navbar-custom">
           <Container>
             <Navbar.Brand href="/">

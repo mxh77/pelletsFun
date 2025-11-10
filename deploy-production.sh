@@ -71,6 +71,9 @@ sudo rm -rf /var/www/pelletsfun/*
 sudo cp -r build/* /var/www/pelletsfun/
 sudo chown -R www-data:www-data /var/www/pelletsfun
 
+echo "🧹 Vidage cache Nginx..."
+sudo nginx -s reload
+
 echo "🔄 Redémarrage services..."
 pm2 restart pelletsfun-backend
 

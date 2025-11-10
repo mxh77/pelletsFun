@@ -705,6 +705,55 @@
   font-size: 0.85rem;
 }
 
+/* ======================================
+   🗑️ BOUTONS DE SUPPRESSION D'IMPORTS
+   ====================================== */
+
+.actions-cell {
+  text-align: center;
+  width: 80px;
+}
+
+.btn-delete-import {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+  min-width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-delete-import:hover {
+  background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+}
+
+.btn-delete-import:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 6px rgba(220, 53, 69, 0.3);
+}
+
+.btn-delete-import:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 2px 4px rgba(108, 117, 125, 0.2);
+}
+
+.btn-delete-import:disabled:hover {
+  background: #6c757d;
+  transform: none;
+  box-shadow: 0 2px 4px rgba(108, 117, 125, 0.2);
+}
+
 .file-size {
   color: #6c757d;
 }
@@ -908,6 +957,25 @@
     flex-direction: column;
   }
   
+  .history-table {
+    font-size: 0.8rem;
+  }
+  
+  .history-table th,
+  .history-table td {
+    padding: 8px 4px;
+  }
+  
+  .actions-cell {
+    width: 60px;
+  }
+  
+  .btn-delete-import {
+    padding: 6px 8px;
+    font-size: 0.9rem;
+    min-width: 36px;
+  }
+  
   .result-message {
     position: relative;
     top: auto;
@@ -948,6 +1016,28 @@
   .service-stats-grid,
   .gmail-details-grid {
     grid-template-columns: 1fr;
+  }
+  
+  /* Masquer la colonne Taille sur très petits écrans */
+  .history-table th:nth-child(4),
+  .history-table td:nth-child(4) {
+    display: none;
+  }
+  
+  .history-table th,
+  .history-table td {
+    padding: 6px 2px;
+    font-size: 0.75rem;
+  }
+  
+  .actions-cell {
+    width: 50px;
+  }
+  
+  .btn-delete-import {
+    padding: 4px 6px;
+    font-size: 0.8rem;
+    min-width: 32px;
   }
   
   .history-table {

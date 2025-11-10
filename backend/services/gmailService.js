@@ -189,19 +189,15 @@ class GmailService {
         }
       }
 
-      // Ajouter filtre de date si période personnalisée spécifiée
+      // Note: On ne filtre plus par date d'email ici
+      // Le filtrage se fera par date de fichier dans processOkofenEmails
       if (dateFrom || dateTo) {
-        console.log('🗓️ Utilisation période personnalisée:', { dateFrom, dateTo });
-        
-        if (dateFrom) {
-          const fromStr = dateFrom.toISOString().split('T')[0].replace(/-/g, '/');
-          query += ` after:${fromStr}`;
-        }
-        
-        if (dateTo) {
-          const toStr = dateTo.toISOString().split('T')[0].replace(/-/g, '/');
-          query += ` before:${toStr}`;
-        }
+        console.log('🗓️ Période personnalisée demandée (filtrage par date de fichier):', { dateFrom, dateTo });
+        // On récupère les emails des 30 derniers jours pour avoir une plage suffisante
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const fromStr = thirtyDaysAgo.toISOString().split('T')[0].replace(/-/g, '/');
+        query += ` after:${fromStr}`;
       }
 
       console.log('🔍 Recherche Gmail:', query);
@@ -432,6 +428,21 @@ class GmailService {
           // Télécharger chaque pièce jointe CSV
           for (const attachment of email.attachments) {
             try {
+              // Vérifier si le fichier correspond à la période demandée (par date de fichier)
+              if (options.dateFrom || options.dateTo) {
+                const fileDate = this.extractDateFromFilename(attachment.filename);
+                if (fileDate) {
+                  const shouldInclude = this.isFileInDateRange(fileDate, options.dateFrom, options.dateTo);
+                  if (!shouldInclude) {
+                    console.log(`📅 Fichier ${attachment.filename} (${fileDate.toISOString().split('T')[0]}) hors période demandée, ignoré`);
+                    continue;
+                  }
+                  console.log(`📅 Fichier ${attachment.filename} (${fileDate.toISOString().split('T')[0]}) dans la période, traitement`);
+                } else {
+                  console.log(`⚠️ Impossible d'extraire la date de ${attachment.filename}, traitement par défaut`);
+                }
+              }
+
               const downloadResult = await this.downloadAttachment(
                 email.id,
                 attachment.attachmentId,
@@ -483,6 +494,79 @@ class GmailService {
       console.error('❌ Erreur traitement emails Okofen:', error);
       throw error;
     }
+  }
+
+  /**
+   * Extrait la date d'un nom de fichier au format touch_YYYYMMDD.csv
+   * @param {string} filename - Nom du fichier
+   * @returns {Date|null} - Date extraite ou null si non trouvée
+   */
+  extractDateFromFilename(filename) {
+    // Chercher le pattern touch_YYYYMMDD.csv ou YYYYMMDD dans le nom
+    const patterns = [
+      /touch_(\d{8})\.csv$/i,        // touch_20251102.csv
+      /(\d{8})\.csv$/i,              // 20251102.csv
+      /(\d{4})(\d{2})(\d{2})/        // YYYYMMDD n'importe où
+    ];
+
+    for (const pattern of patterns) {
+      const match = filename.match(pattern);
+      if (match) {
+        let dateStr;
+        if (match.length === 2) {
+          dateStr = match[1]; // Format YYYYMMDD complet
+        } else if (match.length === 4) {
+          dateStr = match[1] + match[2] + match[3]; // YYYY MM DD séparés
+        }
+
+        if (dateStr && dateStr.length === 8) {
+          const year = dateStr.substring(0, 4);
+          const month = dateStr.substring(4, 6);
+          const day = dateStr.substring(6, 8);
+          
+          const date = new Date(`${year}-${month}-${day}`);
+          
+          // Vérifier que la date est valide
+          if (!isNaN(date.getTime())) {
+            return date;
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Vérifie si une date de fichier est dans la plage demandée
+   * @param {Date} fileDate - Date du fichier
+   * @param {Date|null} dateFrom - Date de début (incluse)
+   * @param {Date|null} dateTo - Date de fin (incluse)
+   * @returns {boolean} - True si le fichier est dans la plage
+   */
+  isFileInDateRange(fileDate, dateFrom, dateTo) {
+    if (!fileDate) {
+      return true; // Si on ne peut pas déterminer la date, on inclut le fichier
+    }
+
+    // Normaliser les dates pour comparer seulement les jours (pas les heures)
+    const fileDateOnly = new Date(fileDate.getFullYear(), fileDate.getMonth(), fileDate.getDate());
+    
+    if (dateFrom) {
+      const fromDateOnly = new Date(dateFrom.getFullYear(), dateFrom.getMonth(), dateFrom.getDate());
+      if (fileDateOnly < fromDateOnly) {
+        return false;
+      }
+    }
+
+    if (dateTo) {
+      const toDateOnly = new Date(dateTo.getFullYear(), dateTo.getMonth(), dateTo.getDate());
+      if (fileDateOnly > toDateOnly) {
+        return false;
+      }
+    }
+
+    return true;
   }
 }
 
