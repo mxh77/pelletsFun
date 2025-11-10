@@ -26,6 +26,7 @@ router.post('/auto-import/check', boilerController.checkForNewFiles);
 // Routes Gmail
 router.get('/gmail/config', boilerController.getGmailConfig);
 router.post('/gmail/config', boilerController.updateGmailConfig);
+router.put('/gmail/config', boilerController.updateGmailConfig);
 router.get('/gmail/auth', boilerController.getGmailAuthUrl);
 router.get('/gmail/callback', boilerController.handleGmailAuthCallback);
 router.post('/gmail/process', boilerController.processGmailEmails);

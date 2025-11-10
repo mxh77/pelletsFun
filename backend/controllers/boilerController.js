@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const cron = require('node-cron');
+const PORTS = require('../config/ports');
 
 // Configuration de multer pour l'upload de fichiers
 const storage = multer.diskStorage({
@@ -702,16 +703,10 @@ exports.handleGmailAuthCallback = async (req, res) => {
     await autoImportService.initializeGmail();
     
     // Rediriger vers l'interface frontend selon l'environnement
-    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL;
-    const frontendUrl = isProduction ? 'https://pelletsfun.harmonixe.fr' : 'http://localhost:8080';
-    
-    res.redirect(`${frontendUrl}/?gmail-auth=success`);
+    res.redirect(`${PORTS.FRONTEND_URL}/?gmail-auth=success`);
   } catch (error) {
     console.error('Erreur callback Gmail:', error);
-    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL;
-    const frontendUrl = isProduction ? 'https://pelletsfun.harmonixe.fr' : 'http://localhost:8080';
-    
-    res.redirect(`${frontendUrl}/?gmail-auth=error`);
+    res.redirect(`${PORTS.FRONTEND_URL}/?gmail-auth=error`);
   }
 };
 

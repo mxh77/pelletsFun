@@ -20,6 +20,7 @@ const BoilerManager = () => {
   const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
   const [manualImportPeriod, setManualImportPeriod] = useState({ dateFrom: '', dateTo: '' });
   const [manualImportSenders, setManualImportSenders] = useState(['']);
+  const [gmailConfig, setGmailConfig] = useState(null);
 
   // États pour les sections pliables
   const [expandedSections, setExpandedSections] = useState({
@@ -43,6 +44,7 @@ const BoilerManager = () => {
     loadStats();
     loadAutoImportStatus();
     loadCronStatus();
+    loadGmailConfig();
   }, []);
 
   const loadStats = async () => {
@@ -73,6 +75,21 @@ const BoilerManager = () => {
       }
     } catch (error) {
       console.error('Erreur chargement cron status:', error);
+    }
+  };
+
+  const loadGmailConfig = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/api/boiler/gmail/config`);
+      if (response.data.success && response.data.config) {
+        setGmailConfig(response.data.config);
+        // Charger les adresses expéditrices sauvegardées
+        if (response.data.config.senders && response.data.config.senders.length > 0) {
+          setManualImportSenders(response.data.config.senders);
+        }
+      }
+    } catch (error) {
+      console.error('Erreur chargement config Gmail:', error);
     }
   };
 
@@ -136,16 +153,32 @@ const BoilerManager = () => {
     setManualImportSenders(prev => [...prev, '']);
   };
 
-  const removeSenderField = (index) => {
-    setManualImportSenders(prev => prev.filter((_, i) => i !== index));
+  const removeSenderField = async (index) => {
+    const newSenders = manualImportSenders.filter((_, i) => i !== index);
+    setManualImportSenders(newSenders);
+    await saveSendersConfig(newSenders);
   };
 
-  const updateSender = (index, value) => {
-    setManualImportSenders(prev => {
-      const newSenders = [...prev];
-      newSenders[index] = value;
-      return newSenders;
-    });
+  const updateSender = async (index, value) => {
+    const newSenders = [...manualImportSenders];
+    newSenders[index] = value;
+    setManualImportSenders(newSenders);
+    
+    // Sauvegarder automatiquement si l'adresse est valide
+    if (value.includes('@') && value.includes('.')) {
+      await saveSendersConfig(newSenders);
+    }
+  };
+
+  const saveSendersConfig = async (senders) => {
+    try {
+      const validSenders = senders.filter(sender => sender.trim() !== '');
+      await axios.put(`${API_URL}/api/boiler/gmail/config`, {
+        senders: validSenders
+      });
+    } catch (error) {
+      console.error('Erreur sauvegarde adresses:', error);
+    }
   };
 
   // Fonctions principales
@@ -503,16 +536,26 @@ const BoilerManager = () => {
                       )}
                     </div>
                   ))}
-                  <button 
-                    type="button"
-                    onClick={addSenderField}
-                    className="btn-add-sender"
-                  >
-                    ➕ Ajouter une Adresse
-                  </button>
+                  <div className="sender-controls">
+                    <button 
+                      type="button"
+                      onClick={addSenderField}
+                      className="btn-add-sender"
+                    >
+                      ➕ Ajouter une Adresse
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => saveSendersConfig(manualImportSenders)}
+                      className="btn-save-senders"
+                    >
+                      💾 Sauvegarder Adresses
+                    </button>
+                  </div>
                 </div>
                 <div className="senders-help">
-                  💡 <strong>Sans adresse :</strong> Utilise l'expéditeur configuré dans Gmail
+                  💡 <strong>Sans adresse :</strong> Utilise l'expéditeur configuré dans Gmail<br/>
+                  🔄 <strong>Sauvegarde automatique</strong> quand vous tapez une adresse email valide
                 </div>
               </div>
               
@@ -689,7 +732,7 @@ const BoilerManager = () => {
 
             {/* Historique */}
             <div className="boiler-subsection">
-              <h3>📋 Historiqqqqqqqque des Imports</h3>
+              <h3>📋 Historique des Imports</h3>
               <div className="history-controls">
                 <button 
                   onClick={() => {
@@ -730,25 +773,6 @@ const BoilerManager = () => {
 
                   {importHistory.files && importHistory.files.length > 0 && (
                     <div>
-                      {/* DEBUG: Informations sur le premier fichier */}
-                      <div style={{background: 'yellow', padding: '10px', margin: '10px 0', border: '2px solid red'}}>
-                        <h4>🔍 DEBUG - Premier fichier:</h4>
-                        {importHistory.files[0] && (
-                          <div>
-                            <p><strong>Nom:</strong> {importHistory.files[0].filename}</p>
-                            <p><strong>entryCount:</strong> {importHistory.files[0].entryCount}</p>
-                            <p><strong>lastImportDate:</strong> {importHistory.files[0].lastImportDate}</p>
-                            <p><strong>effectiveDate:</strong> {importHistory.files[0].effectiveDate?.toLocaleDateString('fr-FR')}</p>
-                            <p><strong>Date affichée:</strong> {new Date(importHistory.files[0].lastImportDate).toLocaleString('fr-FR')}</p>
-                            <p><strong>Pattern de date dans nom:</strong> {importHistory.files[0].filename.match(/(\d{8})/) ? 'Trouvé: ' + importHistory.files[0].filename.match(/(\d{8})/)[1] : 'Aucun'}</p>
-                          </div>
-                        )}
-                        <details>
-                          <summary>Structure complète (cliquez pour voir)</summary>
-                          <pre>{JSON.stringify(importHistory.files[0], null, 2)}</pre>
-                        </details>
-                      </div>
-                      
                       <div className="history-table-container">
                       <table className="history-table">
                         <thead>

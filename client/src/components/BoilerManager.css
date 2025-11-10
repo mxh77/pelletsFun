@@ -986,6 +986,34 @@ select:focus {
   outline-offset: 2px;
 }
 
+/* Styles pour les contrôles d'expéditeurs */
+.sender-controls {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.btn-save-senders {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.btn-save-senders:hover {
+  background: #218838;
+  transform: translateY(-1px);
+}
+
+.btn-save-senders:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
 /* États disabled plus visuels */
 button:disabled,
 input:disabled,

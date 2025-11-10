@@ -165,7 +165,7 @@ const GmailConfig = () => {
                 <li>Créer un nouveau projet ou sélectionner un projet existant</li>
                 <li>Activer l'API Gmail</li>
                 <li>Créer des identifiants OAuth 2.0</li>
-                <li>Configurer l'URL de redirection: <code>http://localhost:3000/api/boiler/gmail/callback</code></li>
+                <li>Configurer l'URL de redirection: <code>http://localhost:3001/api/boiler/gmail/callback</code></li>
               </ul>
             </div>
             
@@ -182,7 +182,7 @@ const GmailConfig = () => {
   "installed": {
     "client_id": "votre-client-id.apps.googleusercontent.com",
     "client_secret": "votre-client-secret",
-    "redirect_uris": ["http://localhost:3000/api/boiler/gmail/callback"]
+    "redirect_uris": ["http://localhost:3001/api/boiler/gmail/callback"]
   }
 }`}</pre>
               </div>
