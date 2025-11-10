@@ -1,13 +1,9 @@
 node_modules
 .vercel
 
-# Fichiers .env avec secrets - NE JAMAIS COMMITER
-*.env.local
-*.env.production
-*.env.development
-**/.env.local
-**/.env.production
-**/.env.development
+# Fichiers .env avec credentials - NE JAMAIS COMMITER
+backend/.env
+client/.env
 
 # Configuration secrets - NE PAS COMMITER
 backend/config/gmail-credentials.json
