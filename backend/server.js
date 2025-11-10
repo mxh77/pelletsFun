@@ -4,8 +4,10 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const PORTS = require('./config/ports');
 
-//Le fichier .env est placé dans le dossier backend et contient la variable d'environnement MONGODB_URI.
-require ('dotenv').config({path: './.env'});
+//Configuration des variables d'environnement avec priorité .env.local (dev) > .env (template)
+require('dotenv').config({path: './.env.local'}); // Dev local (ignoré par git)
+// Configuration des variables d'environnement
+require('dotenv').config();       // Template (commité)
 const app = express();
 
 // Connect to database
