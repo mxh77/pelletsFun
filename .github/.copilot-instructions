@@ -44,7 +44,18 @@ Ce projet est une application de gestion de données de chaudière à pellets av
 **OBLIGATOIRE** : Proposer un git add + git commit avec un message en français approprié.
 **INTERDIT** : Ne jamais proposer de déploiement local ou de production après une évolution.
 **INTERDIT** : Ne jamais proposer de build après une évolution (ex.: `npm run build`).
-**INTERDIT** : Ne jamais créer de documentation sans mon consentement.
+**INTERDIT** : Ne jamais créer de documentation sans demande explicite.
+
+### Commande de déploiement production
+**Lorsque je demande de commiter et déployer en production**, donner la commande suivante à exécuter :
+```bash
+./deploy-production.sh "Message de commit"
+```
+
+Exemple :
+```bash
+./deploy-production.sh "feat: Ajout suppression imports avec validation"
+```
 
 Format des commandes recommandé :
 ```bash
@@ -69,9 +80,14 @@ Exemples de messages de commit :
 - Mentionner les breaking changes si applicable
 
 ### Déploiement manuel
-Après le commit, l'utilisateur exécutera manuellement le script de déploiement :
+**Local :** Après le commit, l'utilisateur exécutera manuellement :
 ```bash
 ./deploy-local.sh "Message du commit"
+```
+
+**Production :** Commit + déploiement en une seule commande :
+```bash
+./deploy-production.sh "Message du commit"
 ```
 
 ### Tests avant déploiement

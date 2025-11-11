@@ -8,8 +8,19 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
+# Vérifier si un message de commit est fourni en paramètre
+COMMIT_MSG="$1"
+
 echo -e "${BLUE}🚀 Déploiement Production PelletsFun${NC}"
 echo "========================================"
+
+# Validation du message de commit si des changements existent
+if [ ! -z "$(git status --porcelain)" ] && [ -z "$COMMIT_MSG" ]; then
+    echo -e "${RED}❌ Erreur: Des changements sont détectés mais aucun message de commit n'est fourni${NC}"
+    echo -e "${YELLOW}Usage: $0 \"Message de commit\"${NC}"
+    echo -e "${YELLOW}Exemple: $0 \"feat: Ajout nouvelle fonctionnalité\"${NC}"
+    exit 1
+fi
 
 # 1. Vérifier les changements
 if [ -z "$(git status --porcelain)" ]; then
@@ -22,10 +33,8 @@ if [ -z "$(git status --porcelain)" ]; then
 else
     # 2. Commit automatique des changements
     echo -e "${BLUE}📝 Commit des changements...${NC}"
+    echo -e "${BLUE}💬 Message: ${COMMIT_MSG}${NC}"
     git add .
-    
-    # Message de commit automatique avec timestamp
-    COMMIT_MSG="Production deployment $(date '+%Y-%m-%d %H:%M:%S')"
     git commit -m "$COMMIT_MSG" || true
     
     echo -e "${BLUE}⬆️ Push vers GitHub...${NC}"
