@@ -26,7 +26,7 @@ function App() {
           <Container>
             <Navbar.Brand href="/">
               <FontAwesomeIcon icon={faFire} className="me-2" />
-              <span className="brand-text">Pellets Tracker</span>
+              <span className="brand-text">Pellets Fun</span>
             </Navbar.Brand>
             <Navbar.Toggle aria-controls="basic-navbar-nav" />
             <Navbar.Collapse id="basic-navbar-nav">

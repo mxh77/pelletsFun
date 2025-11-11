@@ -862,154 +862,31 @@ exports.triggerManualImport = async (req, res) => {
     console.log('📅 Paramètres de période:', { dateFrom, dateTo });
     console.log('📧 Expéditeurs:', senders);
     console.log('🔄 Écraser fichiers existants:', overwriteExisting || false);
-    
-    // Importer le service d'auto-import
-    const autoImportService = require('../services/autoImportService');
-    
-    // Obtenir les statistiques avant l'import
-    const statsBefore = await BoilerData.countDocuments();
-    const filesBefore = await BoilerData.distinct('filename');
-    
-    console.log(`📊 État avant import: ${statsBefore} entrées, ${filesBefore.length} fichiers`);
-    
-    // Préparer les paramètres pour l'import avec période et expéditeurs optionnels
-    const importParams = {};
-    
-    if (dateFrom || dateTo) {
-      importParams.period = {
-        dateFrom: dateFrom ? new Date(dateFrom) : null,
-        dateTo: dateTo ? new Date(dateTo) : null
-      };
-      console.log('🗓️ Import avec période spécifique:', importParams.period);
-    } else {
-      console.log('🗓️ Import avec paramètres Gmail par défaut');
-    }
-    
-    if (senders && Array.isArray(senders) && senders.length > 0) {
-      importParams.senders = senders;
-      console.log('📧 Import avec expéditeurs spécifiques:', senders);
-    } else {
-      console.log('📧 Import avec expéditeur configuré par défaut');
-    }
-    
-    // Utiliser le service Gmail optimisé
-    const GmailService = require('../services/gmailService');
-    const gmailService = new GmailService();
-    const gmailInitResult = await gmailService.initialize();
-    
-    if (!gmailInitResult.configured) {
-      return res.status(400).json({
-        success: false,
-        error: 'Service Gmail non configuré',
-        details: gmailInitResult.error
-      });
-    }
-    
-    // Récupérer la configuration Gmail
-    const GmailConfig = require('../models/GmailConfig');
-    const config = await GmailConfig.getConfig();
-    
-    // Préparer les options pour le traitement optimisé
-    const gmailOptions = {
-      subject: config.subject || 'okofen',
-      downloadPath: require('path').join(process.cwd(), 'backend', 'auto-downloads'),
-      processCallback: async (filePath, context) => {
-        // Import automatique du fichier CSV
-        try {
-          const importResult = await autoImportService.importCSVFile(filePath, require('path').basename(filePath));
-          console.log(`📊 Import CSV réussi: ${context.attachment.filename} - ${importResult.validEntries} entrées`);
-          return importResult;
-        } catch (importError) {
-          console.error(`❌ Erreur import CSV ${context.attachment.filename}:`, importError.message);
-          throw importError;
-        }
-      },
-      markAsProcessed: true,
-      labelProcessed: 'PelletsFun-Traité'
-    };
-    
-    // Ajouter les paramètres de période si spécifiés
-    if (importParams.period) {
-      if (importParams.period.dateFrom) {
-        gmailOptions.dateFrom = importParams.period.dateFrom.toISOString().split('T')[0];
-      }
-      if (importParams.period.dateTo) {
-        gmailOptions.dateTo = importParams.period.dateTo.toISOString().split('T')[0];
-      }
-    }
-    
-    // Ajouter les expéditeurs
-    if (importParams.senders && importParams.senders.length > 0) {
-      gmailOptions.sender = importParams.senders;
-    } else if (config.senders && config.senders.filter(s => s.trim()).length > 0) {
-      gmailOptions.sender = config.senders.filter(s => s.trim());
-    }
-    
-    // Ajouter l'option d'écrasement des fichiers existants
-    gmailOptions.overwriteExisting = overwriteExisting || false;
-    
-    // Déclencher l'import optimisé
-    const importResult = await gmailService.processOkofenEmails(gmailOptions);
-    
-    // Nettoyage automatique en arrière-plan
-    gmailService.cleanupOldProcessedEmails().catch(err => 
-      console.error('Erreur nettoyage (non bloquante):', err.message)
-    );
-    
-    // Convertir le résultat au format attendu par l'interface
-    const processedResult = {
-      success: true,
-      details: {
-        downloaded: importResult.downloaded,
-        processed: importResult.processed,
-        errors: importResult.errors
-      }
-    };
-    
-    if (!processedResult.success) {
-      return res.status(500).json({
-        success: false,
-        error: 'Erreur lors de l\'import',
-        details: processedResult.details
-      });
-    }
-    
-    // Obtenir les statistiques après l'import
-    const statsAfter = await BoilerData.countDocuments();
-    const filesAfter = await BoilerData.distinct('filename');
-    
-    const newEntries = statsAfter - statsBefore;
-    const newFiles = filesAfter.length - filesBefore.length;
-    
-    console.log(`📊 État après import: ${statsAfter} entrées, ${filesAfter.length} fichiers`);
-    console.log(`✅ Import terminé: +${newEntries} entrées, +${newFiles} fichiers`);
-    
-    // Obtenir le statut du service pour les détails
-    const serviceStatus = autoImportService.getStatus();
-    const serviceStats = autoImportService.stats;
-    
+
+    // Créer une tâche asynchrone
+    const taskManager = require('../services/taskManager');
+    const taskDescription = `Import Gmail ${dateFrom || 'début'} → ${dateTo || 'fin'}${overwriteExisting ? ' (écrasement)' : ''}`;
+    const task = taskManager.createTask('gmail_import', taskDescription);
+
+    // Répondre immédiatement avec l'ID de tâche
     res.json({
       success: true,
-      message: `Import manuel terminé avec succès`,
-      results: {
-        entriesBefore: statsBefore,
-        entriesAfter: statsAfter,
-        newEntries: newEntries,
-        filesBefore: filesBefore.length,
-        filesAfter: filesAfter.length,
-        newFiles: newFiles,
-        importDetails: processedResult.details || {},
-        serviceStats: {
-          filesProcessed: serviceStats.filesProcessed || 0,
-          duplicatesSkipped: 0, // Pas de tracking des doublons dans le service actuel
-          totalImported: serviceStats.totalFiles || 0,
-          errorRate: serviceStats.errors > 0 ? (serviceStats.errors / (serviceStats.filesProcessed || 1)) : 0
-        }
+      message: 'Import démarré en arrière-plan',
+      taskId: task.id,
+      task: {
+        id: task.id,
+        description: task.description,
+        status: task.status,
+        progress: task.progress,
+        details: task.details
       }
     });
-    
+
+    // Démarrer le traitement asynchrone
+    setImmediate(() => processGmailImportAsync(task.id, { dateFrom, dateTo, senders, overwriteExisting }));
+
   } catch (error) {
-    console.error('❌ Erreur import manuel:', error);
+    console.error('❌ Erreur création tâche import manuel:', error);
     res.status(500).json({
       success: false,
       error: error.message,
@@ -1190,6 +1067,109 @@ exports.getImportHistory = async (req, res) => {
   }
 };
 
+// Obtenir le statut d'une tâche spécifique
+exports.getTaskStatus = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const taskManager = require('../services/taskManager');
+    
+    const task = taskManager.getTask(taskId);
+    
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tâche introuvable'
+      });
+    }
+
+    res.json({
+      success: true,
+      task: {
+        id: task.id,
+        type: task.type,
+        description: task.description,
+        status: task.status,
+        progress: task.progress,
+        startTime: task.startTime,
+        endTime: task.endTime,
+        duration: task.duration,
+        details: task.details,
+        result: task.result,
+        error: task.error
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur récupération statut tâche:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+// Obtenir les logs d'une tâche spécifique
+exports.getTaskLogs = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const taskManager = require('../services/taskManager');
+    
+    const task = taskManager.getTask(taskId);
+    
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tâche introuvable'
+      });
+    }
+
+    res.json({
+      success: true,
+      logs: task.logs || []
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur récupération logs tâche:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+// Obtenir toutes les tâches actives
+exports.getActiveTasks = async (req, res) => {
+  try {
+    const taskManager = require('../services/taskManager');
+    const tasks = taskManager.getUserTasks();
+    
+    const activeTasks = tasks.map(task => ({
+      id: task.id,
+      type: task.type,
+      description: task.description,
+      status: task.status,
+      progress: task.progress,
+      startTime: task.startTime,
+      endTime: task.endTime,
+      duration: task.duration,
+      details: task.details
+    }));
+
+    res.json({
+      success: true,
+      tasks: activeTasks,
+      stats: taskManager.getStats()
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur récupération tâches actives:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
 // Supprimer un import spécifique
 exports.deleteImport = async (req, res) => {
   try {
@@ -1250,3 +1230,167 @@ exports.deleteImport = async (req, res) => {
     });
   }
 };
+
+/**
+ * Traitement asynchrone de l'import Gmail
+ */
+async function processGmailImportAsync(taskId, params) {
+  const taskManager = require('../services/taskManager');
+  
+  try {
+    const { dateFrom, dateTo, senders, overwriteExisting } = params;
+    
+    // Étape 1: Initialisation
+    taskManager.updateTaskStatus(taskId, 'running', 0, { 
+      currentStep: 'Initialisation des services...' 
+    });
+    taskManager.addTaskLog(taskId, 'info', 'Démarrage du traitement asynchrone');
+
+    // Importer les services nécessaires
+    const autoImportService = require('../services/autoImportService');
+    const GmailService = require('../services/gmailService');
+    const GmailConfig = require('../models/GmailConfig');
+
+    // Étape 2: Statistiques initiales
+    taskManager.updateTaskStatus(taskId, 'running', 5, { 
+      currentStep: 'Collecte des statistiques initiales...' 
+    });
+
+    const statsBefore = await BoilerData.countDocuments();
+    const filesBefore = await BoilerData.distinct('filename');
+    
+    taskManager.addTaskLog(taskId, 'info', `État avant import: ${statsBefore} entrées, ${filesBefore.length} fichiers`);
+
+    // Étape 3: Configuration Gmail
+    taskManager.updateTaskStatus(taskId, 'running', 10, { 
+      currentStep: 'Configuration du service Gmail...' 
+    });
+
+    const gmailService = new GmailService();
+    const gmailInitResult = await gmailService.initialize();
+    
+    if (!gmailInitResult.configured) {
+      throw new Error(`Service Gmail non configuré: ${gmailInitResult.error}`);
+    }
+
+    const config = await GmailConfig.getConfig();
+    taskManager.addTaskLog(taskId, 'info', 'Service Gmail initialisé avec succès');
+
+    // Étape 4: Préparation des paramètres
+    taskManager.updateTaskStatus(taskId, 'running', 15, { 
+      currentStep: 'Préparation des paramètres d\'import...' 
+    });
+
+    const importParams = {};
+    if (dateFrom || dateTo) {
+      importParams.period = {
+        dateFrom: dateFrom ? new Date(dateFrom) : null,
+        dateTo: dateTo ? new Date(dateTo) : null
+      };
+    }
+
+    const gmailOptions = {
+      subject: config.subject || 'okofen',
+      downloadPath: require('path').join(process.cwd(), 'backend', 'auto-downloads'),
+      processCallback: async (filePath, context) => {
+        // Callback avec mise à jour du progrès
+        taskManager.updateTaskStatus(taskId, 'running', null, {
+          currentStep: `Import CSV: ${context.attachment.filename}...`,
+          importedFiles: (taskManager.getTask(taskId).details.importedFiles || 0) + 1
+        });
+        
+        try {
+          const importResult = await autoImportService.importCSVFile(filePath, require('path').basename(filePath));
+          taskManager.addTaskLog(taskId, 'success', `Import CSV réussi: ${context.attachment.filename} - ${importResult.validEntries} entrées`);
+          return importResult;
+        } catch (importError) {
+          taskManager.addTaskLog(taskId, 'error', `Erreur import CSV ${context.attachment.filename}: ${importError.message}`);
+          throw importError;
+        }
+      },
+      markAsProcessed: true,
+      labelProcessed: 'PelletsFun-Traité',
+      overwriteExisting: overwriteExisting || false
+    };
+
+    // Configuration de la période
+    if (importParams.period) {
+      if (importParams.period.dateFrom) {
+        gmailOptions.dateFrom = importParams.period.dateFrom.toISOString().split('T')[0];
+      }
+      if (importParams.period.dateTo) {
+        gmailOptions.dateTo = importParams.period.dateTo.toISOString().split('T')[0];
+      }
+    }
+
+    // Configuration des expéditeurs
+    if (senders && senders.length > 0) {
+      gmailOptions.sender = senders;
+    } else if (config.senders && config.senders.filter(s => s.trim()).length > 0) {
+      gmailOptions.sender = config.senders.filter(s => s.trim());
+    }
+
+    // Étape 5: Recherche préliminaire pour obtenir le total
+    taskManager.updateTaskStatus(taskId, 'running', 20, { 
+      currentStep: 'Recherche des emails Gmail...' 
+    });
+
+    // D'abord, faire une recherche pour obtenir le nombre total
+    const searchResult = await gmailService.searchOkofenEmails(gmailOptions);
+    if (searchResult.totalFound > 0) {
+      taskManager.updateTaskStatus(taskId, 'running', 25, { 
+        currentStep: `${searchResult.totalFound} emails trouvés, démarrage du traitement...`,
+        totalEmails: searchResult.totalFound,
+        pagesProcessed: searchResult.pagesProcessed || 1
+      });
+      taskManager.addTaskLog(taskId, 'info', `Recherche terminée: ${searchResult.totalFound} emails trouvés sur ${searchResult.pagesProcessed || 1} page(s)`);
+    }
+
+    // Étape 6: Traitement des emails
+    taskManager.updateTaskStatus(taskId, 'running', 30, { 
+      currentStep: 'Traitement et téléchargement des pièces jointes...' 
+    });
+
+    const importResult = await gmailService.processOkofenEmails(gmailOptions);
+
+    // Étape 7: Nettoyage et statistiques finales
+    taskManager.updateTaskStatus(taskId, 'running', 90, { 
+      currentStep: 'Finalisation et statistiques...' 
+    });
+
+    // Nettoyage en arrière-plan
+    gmailService.cleanupOldProcessedEmails().catch(err => 
+      taskManager.addTaskLog(taskId, 'warn', `Nettoyage (non bloquant): ${err.message}`)
+    );
+
+    // Statistiques finales
+    const statsAfter = await BoilerData.countDocuments();
+    const filesAfter = await BoilerData.distinct('filename');
+    const newEntries = statsAfter - statsBefore;
+    const newFiles = filesAfter.length - filesBefore.length;
+
+    taskManager.addTaskLog(taskId, 'info', `État après import: ${statsAfter} entrées, ${filesAfter.length} fichiers`);
+    taskManager.addTaskLog(taskId, 'success', `Import terminé: +${newEntries} entrées, +${newFiles} fichiers`);
+
+    // Résultat final
+    const finalResult = {
+      entriesBefore: statsBefore,
+      entriesAfter: statsAfter,
+      newEntries: newEntries,
+      filesBefore: filesBefore.length,
+      filesAfter: filesAfter.length,
+      newFiles: newFiles,
+      importDetails: {
+        downloaded: importResult.downloaded || 0,
+        processed: importResult.processed || 0,
+        errors: importResult.errors || []
+      }
+    };
+
+    taskManager.completeTask(taskId, finalResult);
+
+  } catch (error) {
+    console.error(`❌ Erreur traitement asynchrone [${taskId}]:`, error);
+    taskManager.failTask(taskId, error);
+  }
+}

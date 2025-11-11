@@ -227,12 +227,22 @@ class GmailService {
 
       console.log('🔍 Recherche Gmail:', query);
 
-      // Optimisation: Limiter la recherche et ajouter date depuis dernier traitement
+      // Optimisation: Limiter la recherche selon le contexte
       const queryOptions = {
         userId: 'me',
-        q: query,
-        maxResults: 20 // Limiter pour éviter de traiter trop d'emails
+        q: query
       };
+
+      // Définir maxResults selon le contexte
+      if (dateFrom || dateTo) {
+        // Mode période spécifiée : limite élevée pour import complet
+        queryOptions.maxResults = 500;
+        console.log('📧 Mode période : limite étendue à 500 emails');
+      } else {
+        // Mode automatique : limite raisonnable
+        queryOptions.maxResults = 50;
+        console.log('📧 Mode automatique : limite à 50 emails récents');
+      }
 
       // Si pas de période spécifiée, chercher depuis le dernier traitement réussi
       if (!dateFrom && !dateTo) {
@@ -248,19 +258,50 @@ class GmailService {
 
       console.log('🔍 Recherche Gmail optimisée:', queryOptions.q);
 
-      const searchResponse = await this.gmail.users.messages.list(queryOptions);
-      const messages = searchResponse.data.messages || [];
-      console.log(`📧 Trouvé ${messages.length} emails correspondants`);
+      // Gestion de la pagination pour les gros volumes
+      let allMessages = [];
+      let pageToken = null;
+      let pageCount = 0;
+      const maxPages = 10; // Limite de sécurité pour éviter les boucles infinies
+
+      do {
+        if (pageToken) {
+          queryOptions.pageToken = pageToken;
+        }
+
+        const searchResponse = await this.gmail.users.messages.list(queryOptions);
+        const messages = searchResponse.data.messages || [];
+        
+        allMessages = allMessages.concat(messages);
+        pageToken = searchResponse.data.nextPageToken;
+        pageCount++;
+
+        console.log(`� Page ${pageCount}: ${messages.length} emails trouvés${pageToken ? ' (page suivante disponible)' : ''}`);
+        
+        // Si période spécifiée et qu'on a encore des pages, continuer
+        // Sinon, s'arrêter après la première page pour éviter de traiter trop d'emails
+        if (!dateFrom && !dateTo && pageCount >= 1) {
+          break;
+        }
+        
+        if (pageCount >= maxPages) {
+          console.log(`⚠️ Limite de ${maxPages} pages atteinte, arrêt de la recherche`);
+          break;
+        }
+
+      } while (pageToken && (dateFrom || dateTo));
+
+      console.log(`📧 Total trouvé: ${allMessages.length} emails sur ${pageCount} page(s)`);
 
       // Filtrer les emails déjà traités (sauf si on force l'écrasement)
-      let messagesToProcess = messages;
+      let messagesToProcess = allMessages;
       
       if (!options.overwriteExisting) {
         const processedIds = new Set(
           (await ProcessedEmail.find({}, 'messageId')).map(p => p.messageId)
         );
-        messagesToProcess = messages.filter(msg => !processedIds.has(msg.id));
-        console.log(`🆕 Nouveaux emails à traiter: ${messagesToProcess.length} sur ${messages.length}`);
+        messagesToProcess = allMessages.filter(msg => !processedIds.has(msg.id));
+        console.log(`🆕 Nouveaux emails à traiter: ${messagesToProcess.length} sur ${allMessages.length}`);
       } else {
         console.log(`🔄 Mode écrasement activé: ${messagesToProcess.length} emails à traiter (doublons inclus)`);
       }
@@ -281,7 +322,8 @@ class GmailService {
       return {
         success: true,
         emails: emailDetails,
-        totalFound: messages.length
+        totalFound: allMessages.length,
+        pagesProcessed: pageCount
       };
 
     } catch (error) {

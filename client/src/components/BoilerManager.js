@@ -20,6 +20,11 @@ const BoilerManager = () => {
   const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
   const [manualImportPeriod, setManualImportPeriod] = useState({ dateFrom: '', dateTo: '' });
   const [manualImportOptions, setManualImportOptions] = useState({ overwriteExisting: false });
+  
+  // États pour le traitement asynchrone
+  const [activeTask, setActiveTask] = useState(null);
+  const [taskStatus, setTaskStatus] = useState(null);
+  const [taskLogs, setTaskLogs] = useState([]);
 
   // États pour les sections pliables
   const [expandedSections, setExpandedSections] = useState({
@@ -280,29 +285,94 @@ const BoilerManager = () => {
       
       const result = response.data;
       
-      if (result.success) {
+      if (result.success && result.taskId) {
+        // Import démarré en mode asynchrone
+        setActiveTask(result.taskId);
+        setTaskStatus(result.task);
+        setTaskLogs([]);
         setImportResult({
           success: true,
-          message: result.message,
-          details: result.results,
-          manualImport: true
+          message: 'Import démarré en arrière-plan...',
+          isAsync: true,
+          taskId: result.taskId
         });
-        
-        await loadStats();
-        await loadImportHistory();
+
+        // Commencer le polling du statut
+        startTaskPolling(result.taskId);
       } else {
         setImportResult({
           error: result.error || 'Erreur lors de l\'import manuel',
           details: result.details
         });
+        setLoading(false);
       }
     } catch (error) {
       console.error('Erreur import manuel:', error);
       setImportResult({ 
         error: error.response?.data?.error || 'Erreur lors du déclenchement de l\'import manuel'
       });
+      setLoading(false);
     }
-    setLoading(false);
+  };
+
+  // Polling du statut de la tâche
+  const startTaskPolling = (taskId) => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const statusResponse = await axios.get(`${API_URL}/api/boiler/tasks/${taskId}/status`);
+        const logsResponse = await axios.get(`${API_URL}/api/boiler/tasks/${taskId}/logs`);
+        
+        if (statusResponse.data.success) {
+          const task = statusResponse.data.task;
+          setTaskStatus(task);
+          
+          if (logsResponse.data.success) {
+            setTaskLogs(logsResponse.data.logs);
+          }
+
+          // Arrêter le polling si la tâche est terminée
+          if (task.status === 'completed' || task.status === 'failed') {
+            clearInterval(pollInterval);
+            setLoading(false);
+            setActiveTask(null);
+
+            if (task.status === 'completed') {
+              setImportResult({
+                success: true,
+                message: 'Import terminé avec succès !',
+                details: task.result,
+                manualImport: true
+              });
+              await loadStats();
+              await loadImportHistory();
+            } else {
+              setImportResult({
+                error: `Import échoué: ${task.error}`,
+                details: task.result
+              });
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Erreur polling tâche:', error);
+        // En cas d'erreur de polling, arrêter et afficher l'erreur
+        clearInterval(pollInterval);
+        setLoading(false);
+        setActiveTask(null);
+        setImportResult({
+          error: 'Erreur de suivi de la tâche'
+        });
+      }
+    }, 2000); // Polling toutes les 2 secondes
+
+    // Nettoyer l'intervalle après 10 minutes maximum
+    setTimeout(() => {
+      clearInterval(pollInterval);
+      if (activeTask) {
+        setLoading(false);
+        setActiveTask(null);
+      }
+    }, 600000);
   };
 
   const calculateConsumption = async () => {
@@ -556,11 +626,88 @@ const BoilerManager = () => {
               
               <button 
                 onClick={triggerManualImport}
-                disabled={loading}
+                disabled={loading || activeTask}
                 className="btn-manual-import"
               >
-                🚀 Déclencher Import Maintenant
+                {activeTask ? '� Import en cours...' : '�🚀 Déclencher Import Maintenant'}
               </button>
+
+              {/* Suivi de tâche asynchrone */}
+              {activeTask && taskStatus && (
+                <div className="task-progress">
+                  <div className="task-header">
+                    <h4>📊 Suivi de l'Import</h4>
+                    <span className={`task-status ${taskStatus.status}`}>
+                      {taskStatus.status === 'running' ? '🔄 En cours' :
+                       taskStatus.status === 'completed' ? '✅ Terminé' :
+                       taskStatus.status === 'failed' ? '❌ Échoué' : '⏳ En attente'}
+                    </span>
+                  </div>
+                  
+                  <div className="task-description">
+                    {taskStatus.description}
+                  </div>
+                  
+                  {/* Barre de progression */}
+                  <div className="progress-container">
+                    <div className="progress-bar">
+                      <div 
+                        className="progress-fill"
+                        style={{ width: `${taskStatus.progress || 0}%` }}
+                      ></div>
+                    </div>
+                    <span className="progress-text">{taskStatus.progress || 0}%</span>
+                  </div>
+                  
+                  {/* Étape actuelle */}
+                  <div className="current-step">
+                    <strong>Étape actuelle :</strong> {taskStatus.details?.currentStep || 'Initialisation...'}
+                  </div>
+                  
+                  {/* Détails */}
+                  {taskStatus.details && (
+                    <div className="task-details">
+                      {taskStatus.details.totalEmails > 0 && (
+                        <div className="detail-item">
+                          📧 Emails: {taskStatus.details.processedEmails || 0} / {taskStatus.details.totalEmails}
+                        </div>
+                      )}
+                      {taskStatus.details.downloadedFiles > 0 && (
+                        <div className="detail-item">
+                          📥 Téléchargés: {taskStatus.details.downloadedFiles}
+                        </div>
+                      )}
+                      {taskStatus.details.importedFiles > 0 && (
+                        <div className="detail-item">
+                          📊 Importés: {taskStatus.details.importedFiles}
+                        </div>
+                      )}
+                      {taskStatus.details.errors > 0 && (
+                        <div className="detail-item error">
+                          ❌ Erreurs: {taskStatus.details.errors}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Logs récents */}
+                  {taskLogs.length > 0 && (
+                    <div className="task-logs">
+                      <h5>📝 Logs récents</h5>
+                      <div className="logs-container">
+                        {taskLogs.slice(-5).map((log, index) => (
+                          <div key={index} className={`log-entry ${log.level}`}>
+                            <span className="log-time">
+                              {new Date(log.timestamp).toLocaleTimeString()}
+                            </span>
+                            <span className="log-message">{log.message}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Automatisation */}
