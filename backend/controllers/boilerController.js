@@ -856,24 +856,15 @@ exports.triggerManualImport = async (req, res) => {
   try {
     console.log('🔄 Déclenchement manuel de l\'import demandé');
     
-    // Récupérer les paramètres de période et expéditeurs depuis la requête
-    const { dateFrom, dateTo, senders } = req.body;
+    // Récupérer les paramètres de période, expéditeurs et options d'écrasement depuis la requête
+    const { dateFrom, dateTo, senders, overwriteExisting } = req.body;
     
     console.log('📅 Paramètres de période:', { dateFrom, dateTo });
     console.log('📧 Expéditeurs:', senders);
+    console.log('🔄 Écraser fichiers existants:', overwriteExisting || false);
     
     // Importer le service d'auto-import
     const autoImportService = require('../services/autoImportService');
-    
-    // Vérifier si le service est configuré
-    const gmailStatus = await autoImportService.initializeGmail();
-    if (!gmailStatus.configured) {
-      return res.status(400).json({
-        success: false,
-        error: 'Service Gmail non configuré',
-        details: gmailStatus.error
-      });
-    }
     
     // Obtenir les statistiques avant l'import
     const statsBefore = await BoilerData.countDocuments();
@@ -904,7 +895,15 @@ exports.triggerManualImport = async (req, res) => {
     // Utiliser le service Gmail optimisé
     const GmailService = require('../services/gmailService');
     const gmailService = new GmailService();
-    await gmailService.initializeAuth();
+    const gmailInitResult = await gmailService.initialize();
+    
+    if (!gmailInitResult.configured) {
+      return res.status(400).json({
+        success: false,
+        error: 'Service Gmail non configuré',
+        details: gmailInitResult.error
+      });
+    }
     
     // Récupérer la configuration Gmail
     const GmailConfig = require('../models/GmailConfig');
@@ -945,6 +944,9 @@ exports.triggerManualImport = async (req, res) => {
     } else if (config.senders && config.senders.filter(s => s.trim()).length > 0) {
       gmailOptions.sender = config.senders.filter(s => s.trim());
     }
+    
+    // Ajouter l'option d'écrasement des fichiers existants
+    gmailOptions.overwriteExisting = overwriteExisting || false;
     
     // Déclencher l'import optimisé
     const importResult = await gmailService.processOkofenEmails(gmailOptions);

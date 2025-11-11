@@ -252,17 +252,22 @@ class GmailService {
       const messages = searchResponse.data.messages || [];
       console.log(`📧 Trouvé ${messages.length} emails correspondants`);
 
-      // Filtrer les emails déjà traités
-      const processedIds = new Set(
-        (await ProcessedEmail.find({}, 'messageId')).map(p => p.messageId)
-      );
+      // Filtrer les emails déjà traités (sauf si on force l'écrasement)
+      let messagesToProcess = messages;
+      
+      if (!options.overwriteExisting) {
+        const processedIds = new Set(
+          (await ProcessedEmail.find({}, 'messageId')).map(p => p.messageId)
+        );
+        messagesToProcess = messages.filter(msg => !processedIds.has(msg.id));
+        console.log(`🆕 Nouveaux emails à traiter: ${messagesToProcess.length} sur ${messages.length}`);
+      } else {
+        console.log(`🔄 Mode écrasement activé: ${messagesToProcess.length} emails à traiter (doublons inclus)`);
+      }
 
-      const newMessages = messages.filter(msg => !processedIds.has(msg.id));
-      console.log(`🆕 Nouveaux emails à traiter: ${newMessages.length} sur ${messages.length}`);
-
-      // Récupérer les détails des nouveaux messages uniquement
+      // Récupérer les détails des messages à traiter
       const emailDetails = [];
-      for (const message of newMessages) {
+      for (const message of messagesToProcess) {
         try {
           const details = await this.getEmailDetails(message.id);
           if (details && details.attachments.length > 0) {
@@ -505,9 +510,9 @@ class GmailService {
               if (downloadResult.success) {
                 downloadedCount++;
 
-                // Enregistrer l'email comme traité dans la base de données
+                // Enregistrer ou mettre à jour l'email comme traité dans la base de données
                 try {
-                  await ProcessedEmail.create({
+                  const processedData = {
                     messageId: email.id,
                     subject: email.subject,
                     sender: email.from,
@@ -516,8 +521,21 @@ class GmailService {
                     fileHash: downloadResult.fileHash,
                     status: 'processed',
                     processedDate: new Date()
-                  });
-                  console.log(`📝 Email enregistré comme traité: ${email.id}`);
+                  };
+
+                  if (options.overwriteExisting) {
+                    // Mode écrasement: mettre à jour ou créer
+                    await ProcessedEmail.findOneAndUpdate(
+                      { messageId: email.id, fileName: attachment.filename },
+                      processedData,
+                      { upsert: true, new: true }
+                    );
+                    console.log(`🔄 Email mis à jour/créé: ${email.id}`);
+                  } else {
+                    // Mode normal: créer seulement
+                    await ProcessedEmail.create(processedData);
+                    console.log(`📝 Email enregistré comme traité: ${email.id}`);
+                  }
                 } catch (dbError) {
                   console.error('⚠️ Erreur sauvegarde DB (non bloquante):', dbError.message);
                 }

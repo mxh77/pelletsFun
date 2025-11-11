@@ -19,6 +19,7 @@ const BoilerManager = () => {
   // États pour l'import manuel
   const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
   const [manualImportPeriod, setManualImportPeriod] = useState({ dateFrom: '', dateTo: '' });
+  const [manualImportOptions, setManualImportOptions] = useState({ overwriteExisting: false });
 
   // États pour les sections pliables
   const [expandedSections, setExpandedSections] = useState({
@@ -264,15 +265,18 @@ const BoilerManager = () => {
   const triggerManualImport = async () => {
     setLoading(true);
     try {
-      const periodParams = {};
+      const importParams = {};
       if (manualImportPeriod.dateFrom) {
-        periodParams.dateFrom = manualImportPeriod.dateFrom;
+        importParams.dateFrom = manualImportPeriod.dateFrom;
       }
       if (manualImportPeriod.dateTo) {
-        periodParams.dateTo = manualImportPeriod.dateTo;
+        importParams.dateTo = manualImportPeriod.dateTo;
       }
+      
+      // Ajouter l'option d'écrasement
+      importParams.overwriteExisting = manualImportOptions.overwriteExisting || false;
 
-      const response = await axios.post(`${API_URL}/api/boiler/import/manual-trigger`, periodParams);
+      const response = await axios.post(`${API_URL}/api/boiler/import/manual-trigger`, importParams);
       
       const result = response.data;
       
@@ -522,7 +526,31 @@ const BoilerManager = () => {
                 <div className="period-help">
                   💡 <strong>Filtrage par date du fichier</strong> (ex: touch_20251102.csv = 02/11/2025)<br/>
                   � <strong>Recherche élargie :</strong> Emails de J-2 à J+2 pour capturer tous les fichiers pertinents<br/>
-                  �📧 <strong>Sans période :</strong> Import de tous les fichiers récents selon config Gmail
+                  � <strong>Sans période :</strong> Import de tous les fichiers récents selon config Gmail
+                </div>
+              </div>
+
+              {/* Option d'écrasement */}
+              <div className="import-options">
+                <h4>⚙️ Options d'Import</h4>
+                <div className="checkbox-group">
+                  <label className="checkbox-label">
+                    <input 
+                      type="checkbox"
+                      checked={manualImportOptions.overwriteExisting || false}
+                      onChange={(e) => setManualImportOptions(prev => ({...prev, overwriteExisting: e.target.checked}))}
+                      className="checkbox-input"
+                    />
+                    <span className="checkbox-text">
+                      🔄 <strong>Écraser les fichiers déjà importés</strong>
+                    </span>
+                  </label>
+                  <div className="option-help">
+                    {manualImportOptions.overwriteExisting ? 
+                      "⚠️ Les données existantes seront remplacées par les nouvelles données" :
+                      "✅ Les fichiers déjà traités seront ignorés (mode par défaut)"
+                    }
+                  </div>
                 </div>
               </div>
               
