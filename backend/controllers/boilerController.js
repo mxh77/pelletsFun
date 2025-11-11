@@ -716,14 +716,58 @@ exports.handleGmailAuthCallback = async (req, res) => {
   }
 };
 
-// Traitement manuel des emails Gmail
+// Traitement manuel des emails Gmail (version optimisée)
 exports.processGmailEmails = async (req, res) => {
   try {
-    const result = await autoImportService.processGmailEmails();
-    res.json(result);
+    // Utiliser le nouveau service Gmail optimisé directement
+    const GmailService = require('../services/gmailService');
+    const gmailService = new GmailService();
+    await gmailService.initializeAuth();
+    
+    // Récupérer la configuration Gmail existante
+    const GmailConfig = require('../models/GmailConfig');
+    const config = await GmailConfig.getConfig();
+    
+    // Traitement avec la logique optimisée
+    const result = await gmailService.processOkofenEmails({
+      sender: config.senders && config.senders.filter(s => s.trim()).length > 0 ? config.senders.filter(s => s.trim()) : null,
+      subject: config.subject || 'okofen',
+      downloadPath: require('path').join(process.cwd(), 'backend', 'auto-downloads'),
+      processCallback: async (filePath, context) => {
+        // Import automatique du fichier CSV avec l'autoImportService existant
+        try {
+          const autoImportService = require('../services/autoImportService');
+          const importResult = await autoImportService.importCSVFile(filePath, require('path').basename(filePath));
+          console.log(`📊 Import CSV réussi: ${context.attachment.filename} - ${importResult.validEntries} entrées`);
+          return importResult;
+        } catch (importError) {
+          console.error(`❌ Erreur import CSV ${context.attachment.filename}:`, importError.message);
+          throw importError;
+        }
+      },
+      markAsProcessed: true,
+      labelProcessed: 'PelletsFun-Traité'
+    });
+
+    // Nettoyage automatique des anciens enregistrements en arrière-plan
+    gmailService.cleanupOldProcessedEmails().catch(err => 
+      console.error('Erreur nettoyage (non bloquante):', err.message)
+    );
+
+    res.json({
+      success: true,
+      message: `✅ Traitement optimisé terminé: ${result.downloaded} fichiers téléchargés, ${result.processed} traités`,
+      downloaded: result.downloaded,
+      processed: result.processed,
+      errors: result.errors
+    });
+
   } catch (error) {
-    console.error('Erreur traitement Gmail:', error);
-    res.status(500).json({ error: error.message });
+    console.error('❌ Erreur traitement Gmail optimisé:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message 
+    });
   }
 };
 
@@ -857,14 +901,74 @@ exports.triggerManualImport = async (req, res) => {
       console.log('📧 Import avec expéditeur configuré par défaut');
     }
     
-    // Déclencher l'import des emails
-    const importResult = await autoImportService.processGmailEmails(importParams);
+    // Utiliser le service Gmail optimisé
+    const GmailService = require('../services/gmailService');
+    const gmailService = new GmailService();
+    await gmailService.initializeAuth();
     
-    if (!importResult.success) {
+    // Récupérer la configuration Gmail
+    const GmailConfig = require('../models/GmailConfig');
+    const config = await GmailConfig.getConfig();
+    
+    // Préparer les options pour le traitement optimisé
+    const gmailOptions = {
+      subject: config.subject || 'okofen',
+      downloadPath: require('path').join(process.cwd(), 'backend', 'auto-downloads'),
+      processCallback: async (filePath, context) => {
+        // Import automatique du fichier CSV
+        try {
+          const importResult = await autoImportService.importCSVFile(filePath, require('path').basename(filePath));
+          console.log(`📊 Import CSV réussi: ${context.attachment.filename} - ${importResult.validEntries} entrées`);
+          return importResult;
+        } catch (importError) {
+          console.error(`❌ Erreur import CSV ${context.attachment.filename}:`, importError.message);
+          throw importError;
+        }
+      },
+      markAsProcessed: true,
+      labelProcessed: 'PelletsFun-Traité'
+    };
+    
+    // Ajouter les paramètres de période si spécifiés
+    if (importParams.period) {
+      if (importParams.period.dateFrom) {
+        gmailOptions.dateFrom = importParams.period.dateFrom.toISOString().split('T')[0];
+      }
+      if (importParams.period.dateTo) {
+        gmailOptions.dateTo = importParams.period.dateTo.toISOString().split('T')[0];
+      }
+    }
+    
+    // Ajouter les expéditeurs
+    if (importParams.senders && importParams.senders.length > 0) {
+      gmailOptions.sender = importParams.senders;
+    } else if (config.senders && config.senders.filter(s => s.trim()).length > 0) {
+      gmailOptions.sender = config.senders.filter(s => s.trim());
+    }
+    
+    // Déclencher l'import optimisé
+    const importResult = await gmailService.processOkofenEmails(gmailOptions);
+    
+    // Nettoyage automatique en arrière-plan
+    gmailService.cleanupOldProcessedEmails().catch(err => 
+      console.error('Erreur nettoyage (non bloquante):', err.message)
+    );
+    
+    // Convertir le résultat au format attendu par l'interface
+    const processedResult = {
+      success: true,
+      details: {
+        downloaded: importResult.downloaded,
+        processed: importResult.processed,
+        errors: importResult.errors
+      }
+    };
+    
+    if (!processedResult.success) {
       return res.status(500).json({
         success: false,
         error: 'Erreur lors de l\'import',
-        details: importResult.error
+        details: processedResult.details
       });
     }
     
@@ -892,7 +996,7 @@ exports.triggerManualImport = async (req, res) => {
         filesBefore: filesBefore.length,
         filesAfter: filesAfter.length,
         newFiles: newFiles,
-        importDetails: importResult.details || {},
+        importDetails: processedResult.details || {},
         serviceStats: {
           filesProcessed: serviceStats.filesProcessed || 0,
           duplicatesSkipped: 0, // Pas de tracking des doublons dans le service actuel

@@ -4,5 +4,5 @@ MEMO
 
 TODO
 - Import données asynchrone
-- ✅ Suppression adresses expéditrices dans "Import Manuel depuis Gmail" (Terminé - gestion centralisée dans onglet Gmail Auto)
-- Supprimer le pavé Actions dans l'onglet Gmail auto
+- ✅ Suppression adresses expéditrices dans "Import Manuel depuis Gmail" (Terminé - gestion centralisée dans onglet Gmail Auto)  
+- ✅ Supprimer le pavé Actions dans l'onglet Gmail auto (Terminé - section Actions supprimée)

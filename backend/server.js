@@ -26,6 +26,7 @@ app.use('/api/deliveries', require('./routes/deliveries'));
 app.use('/api/recharges', require('./routes/recharges'));
 app.use('/api/seasons', require('./routes/seasons'));
 app.use('/api/boiler', require('./routes/boiler'));
+app.use('/api/gmail', require('./routes/gmail'));
 
 app.listen(PORTS.BACKEND, () => {
   console.log(`🚀 Backend Express server running on ${PORTS.BACKEND_URL}`);

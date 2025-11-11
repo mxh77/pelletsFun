@@ -1,6 +1,8 @@
 const { google } = require('googleapis');
 const fs = require('fs').promises;
 const path = require('path');
+const crypto = require('crypto');
+const ProcessedEmail = require('../models/ProcessedEmail');
 
 class GmailService {
   constructor() {
@@ -225,18 +227,42 @@ class GmailService {
 
       console.log('🔍 Recherche Gmail:', query);
 
-      const searchResponse = await this.gmail.users.messages.list({
+      // Optimisation: Limiter la recherche et ajouter date depuis dernier traitement
+      const queryOptions = {
         userId: 'me',
-        q: query
-        // Pas de limite maxResults - récupérer tous les emails correspondants
-      });
+        q: query,
+        maxResults: 20 // Limiter pour éviter de traiter trop d'emails
+      };
 
+      // Si pas de période spécifiée, chercher depuis le dernier traitement réussi
+      if (!dateFrom && !dateTo) {
+        const lastProcessed = await ProcessedEmail.findOne().sort({ emailDate: -1 });
+        if (lastProcessed) {
+          const lastDate = new Date(lastProcessed.emailDate);
+          lastDate.setDate(lastDate.getDate() - 1); // 1 jour de marge
+          const afterDate = lastDate.toISOString().split('T')[0].replace(/-/g, '/');
+          queryOptions.q += ` after:${afterDate}`;
+          console.log(`⚡ Recherche optimisée depuis: ${afterDate}`);
+        }
+      }
+
+      console.log('🔍 Recherche Gmail optimisée:', queryOptions.q);
+
+      const searchResponse = await this.gmail.users.messages.list(queryOptions);
       const messages = searchResponse.data.messages || [];
       console.log(`📧 Trouvé ${messages.length} emails correspondants`);
 
-      // Récupérer les détails de chaque message
+      // Filtrer les emails déjà traités
+      const processedIds = new Set(
+        (await ProcessedEmail.find({}, 'messageId')).map(p => p.messageId)
+      );
+
+      const newMessages = messages.filter(msg => !processedIds.has(msg.id));
+      console.log(`🆕 Nouveaux emails à traiter: ${newMessages.length} sur ${messages.length}`);
+
+      // Récupérer les détails des nouveaux messages uniquement
       const emailDetails = [];
-      for (const message of messages) {
+      for (const message of newMessages) {
         try {
           const details = await this.getEmailDetails(message.id);
           if (details && details.attachments.length > 0) {
@@ -341,11 +367,14 @@ class GmailService {
       await fs.writeFile(fullPath, data);
 
       console.log(`✅ Pièce jointe téléchargée: ${fullPath}`);
+      
+      // Retourner les informations incluant le hash pour le tracking
       return {
         success: true,
         filePath: fullPath,
         filename: filename,
-        size: data.length
+        size: data.length,
+        fileHash: crypto.createHash('md5').update(data).digest('hex')
       };
 
     } catch (error) {
@@ -476,6 +505,23 @@ class GmailService {
               if (downloadResult.success) {
                 downloadedCount++;
 
+                // Enregistrer l'email comme traité dans la base de données
+                try {
+                  await ProcessedEmail.create({
+                    messageId: email.id,
+                    subject: email.subject,
+                    sender: email.from,
+                    emailDate: email.receivedDate,
+                    fileName: attachment.filename,
+                    fileHash: downloadResult.fileHash,
+                    status: 'processed',
+                    processedDate: new Date()
+                  });
+                  console.log(`📝 Email enregistré comme traité: ${email.id}`);
+                } catch (dbError) {
+                  console.error('⚠️ Erreur sauvegarde DB (non bloquante):', dbError.message);
+                }
+
                 // Callback personnalisé de traitement (ex: import CSV)
                 if (processCallback && typeof processCallback === 'function') {
                   await processCallback(downloadResult.filePath, {
@@ -592,6 +638,63 @@ class GmailService {
     }
 
     return true;
+  }
+
+  /**
+   * Nettoie les anciens enregistrements de ProcessedEmail (> 90 jours)
+   * Pour éviter l'accumulation infinie de données
+   */
+  async cleanupOldProcessedEmails() {
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - 90); // 90 jours
+
+      const result = await ProcessedEmail.deleteMany({
+        processedDate: { $lt: cutoffDate }
+      });
+
+      if (result.deletedCount > 0) {
+        console.log(`🧹 Nettoyage: ${result.deletedCount} anciens enregistrements supprimés`);
+      }
+
+      return result.deletedCount;
+    } catch (error) {
+      console.error('⚠️ Erreur nettoyage ProcessedEmail:', error.message);
+      return 0;
+    }
+  }
+
+  /**
+   * Obtient les statistiques de traitement des emails
+   */
+  async getProcessingStats() {
+    try {
+      const totalProcessed = await ProcessedEmail.countDocuments();
+      const last7Days = await ProcessedEmail.countDocuments({
+        processedDate: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+      });
+      const last30Days = await ProcessedEmail.countDocuments({
+        processedDate: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+      });
+
+      const latestProcessed = await ProcessedEmail.findOne()
+        .sort({ processedDate: -1 })
+        .select('processedDate emailDate fileName');
+
+      return {
+        totalProcessed,
+        last7Days,
+        last30Days,
+        latestProcessed: latestProcessed ? {
+          processedDate: latestProcessed.processedDate,
+          emailDate: latestProcessed.emailDate,
+          fileName: latestProcessed.fileName
+        } : null
+      };
+    } catch (error) {
+      console.error('⚠️ Erreur statistiques:', error.message);
+      return null;
+    }
   }
 }
 

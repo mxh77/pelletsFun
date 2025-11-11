@@ -301,7 +301,7 @@ class AutoImportService {
       await this.checkForNewFiles();
       
       // Vérifier Gmail si configuré
-      if (this.config.gmail.enabled) {
+      if (this.config.gmail && this.config.gmail.enabled) {
         console.log('📧 Vérification Gmail...');
         await this.processGmailEmails();
       }
@@ -344,6 +344,9 @@ class AutoImportService {
           }))
           .sort((a, b) => b.mtime - a.mtime); // Plus récent en premier
 
+        let skippedFiles = [];
+        let processedFiles = [];
+
         console.log(`📂 Trouvé ${files.length} fichiers CSV dans ${folder}`);
 
         for (const file of files) {
@@ -353,12 +356,21 @@ class AutoImportService {
           }).sort({ importDate: -1 });
 
           if (existingData && existingData.importDate > file.mtime) {
-            console.log(`⚠️ Fichier déjà importé: ${file.name}`);
+            skippedFiles.push(file.name);
             continue;
           }
 
           console.log(`🔄 Import du fichier: ${file.name}`);
           await this.importCSVFile(file.path, file.name);
+          processedFiles.push(file.name);
+        }
+
+        // Résumé de traitement par dossier
+        if (skippedFiles.length > 0) {
+          console.log(`⏭️ Fichiers ignorés (${skippedFiles.length}): ${skippedFiles.length > 5 ? skippedFiles.slice(0, 5).join(', ') + '...' : skippedFiles.join(', ')}`);
+        }
+        if (processedFiles.length > 0) {
+          console.log(`✅ Fichiers traités (${processedFiles.length}): ${processedFiles.join(', ')}`);
         }
       }
     } catch (error) {

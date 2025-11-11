@@ -65,6 +65,8 @@ const BoilerManager = () => {
   const loadAutoImportStatus = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/boiler/auto-import/status`);
+      console.log('🔍 Auto-import status loaded:', response.data);
+      console.log('🔍 isWatching value:', response.data?.isWatching);
       setAutoImportStatus(response.data);
     } catch (error) {
       console.error('Erreur chargement auto-import status:', error);
@@ -188,9 +190,14 @@ const BoilerManager = () => {
   const toggleAutoImport = async () => {
     setLoading(true);
     try {
-      const enabled = !autoImportStatus?.enabled;
+      const enabled = !autoImportStatus?.isWatching;
       const response = await axios.post(`${API_URL}/api/boiler/auto-import/toggle`, { enabled });
+      console.log('🔄 Toggle response:', response.data);
       setAutoImportStatus(response.data);
+      
+      // Recharger le statut pour être sûr
+      await loadAutoImportStatus();
+      
       setImportResult({ 
         success: true, 
         message: enabled ? 'Auto-import activé' : 'Auto-import désactivé' 
@@ -218,12 +225,21 @@ const BoilerManager = () => {
   const toggleCronJob = async () => {
     setLoading(true);
     try {
-      const enabled = !cronStatus?.isActive;
-      const response = await axios.post(`${API_URL}/api/boiler/cron/toggle`, { enabled });
+      const isActive = cronStatus?.isActive;
+      const endpoint = isActive ? 'cron/stop' : 'cron/start';
+      
+      console.log(`🔄 ${isActive ? 'Arrêt' : 'Démarrage'} du cron job...`);
+      const response = await axios.post(`${API_URL}/api/boiler/${endpoint}`);
+      
+      console.log('🔄 Cron response:', response.data);
       setCronStatus(response.data);
+      
+      // Recharger le statut pour être sûr
+      await loadCronStatus();
+      
       setImportResult({ 
         success: true, 
-        message: enabled ? 'Traitement automatique activé' : 'Traitement automatique désactivé' 
+        message: isActive ? 'Traitement automatique arrêté' : 'Traitement automatique démarré' 
       });
     } catch (error) {
       console.error('Erreur toggle cron:', error);
@@ -529,9 +545,9 @@ const BoilerManager = () => {
                     <button 
                       onClick={toggleAutoImport}
                       disabled={loading}
-                      className={`btn-toggle ${autoImportStatus?.enabled ? 'active' : 'inactive'}`}
+                      className={`btn-toggle ${autoImportStatus?.isWatching ? 'active' : 'inactive'}`}
                     >
-                      {autoImportStatus?.enabled ? '⏸️ Désactiver' : '▶️ Activer'}
+                      {autoImportStatus?.isWatching ? '⏸️ Désactiver' : '▶️ Activer'}
                     </button>
                   </div>
                   <p>Surveillance automatique du dossier pour nouveaux fichiers CSV</p>

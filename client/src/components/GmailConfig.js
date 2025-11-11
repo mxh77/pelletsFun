@@ -130,6 +130,9 @@ const GmailConfig = () => {
       <div className="gmail-header">
         <h2>📧 Configuration Gmail Automatique</h2>
         <p>Récupération automatique des emails Okofen avec pièces jointes CSV</p>
+        <div style={{background: 'rgba(255,255,255,0.2)', padding: '10px', borderRadius: '5px', marginTop: '10px'}}>
+          <small>🚀 <strong>Système optimisé :</strong> Traitement intelligent des nouveaux emails uniquement</small>
+        </div>
       </div>
 
       {/* Statut de configuration */}
@@ -284,23 +287,6 @@ const GmailConfig = () => {
               disabled={processing}
             >
               💾 Sauvegarder Configuration
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Actions manuelles */}
-      {status.configured && (
-        <div className="actions-section">
-          <h3>🚀 Actions</h3>
-          
-          <div className="actions-buttons">
-            <button 
-              onClick={loadGmailConfig}
-              className="btn-refresh"
-              disabled={processing}
-            >
-              🔄 Actualiser Statut
             </button>
           </div>
         </div>
