@@ -347,27 +347,67 @@ exports.calculateConsumption = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     
+    console.log('🔍 Calcul consommation - Paramètres reçus:', { startDate, endDate });
+    
     if (!startDate || !endDate) {
       return res.status(400).json({ 
         error: 'Dates de début et fin requises' 
       });
     }
 
+    // Convertir les dates en objets Date
+    const startDateObj = new Date(startDate);
+    const endDateObj = new Date(endDate);
+    
+    console.log('📅 Dates converties:', { 
+      startDateObj: startDateObj.toISOString(), 
+      endDateObj: endDateObj.toISOString() 
+    });
+
+    // Vérifier qu'on a des données dans cette période
+    const dataCount = await BoilerData.countDocuments({
+      date: { $gte: startDateObj, $lte: endDateObj }
+    });
+    
+    console.log(`📊 Nombre d'entrées trouvées pour la période: ${dataCount}`);
+
     // Récupérer la configuration depuis la base de données
     const config = await getBoilerConfigData();
 
     // Récupérer les données de runtime pour la période
     const startData = await BoilerData.findOne({
-      date: { $gte: new Date(startDate) }
+      date: { $gte: startDateObj }
     }).sort({ date: 1, time: 1 });
 
     const endData = await BoilerData.findOne({
-      date: { $lte: new Date(endDate) }
+      date: { $lte: endDateObj }
     }).sort({ date: -1, time: -1 });
 
+    console.log('🔍 Données trouvées:', {
+      startData: startData ? { date: startData.date, runtime: startData.runtime } : null,
+      endData: endData ? { date: endData.date, runtime: endData.runtime } : null
+    });
+
     if (!startData || !endData) {
+      // Cherchons les données disponibles pour diagnostic
+      const firstData = await BoilerData.findOne().sort({ date: 1 });
+      const lastData = await BoilerData.findOne().sort({ date: -1 });
+      
+      console.log('📊 Plage de données disponibles:', {
+        first: firstData ? firstData.date : 'aucune',
+        last: lastData ? lastData.date : 'aucune'
+      });
+      
       return res.status(404).json({ 
-        error: 'Données insuffisantes pour la période' 
+        error: 'Données insuffisantes pour la période',
+        debug: {
+          requestedPeriod: { startDate, endDate },
+          availableData: {
+            first: firstData ? firstData.date : null,
+            last: lastData ? lastData.date : null,
+            totalEntries: dataCount
+          }
+        }
       });
     }
 
@@ -378,9 +418,9 @@ exports.calculateConsumption = async (req, res) => {
     const periodData = await BoilerData.aggregate([
       {
         $match: {
-          date: { $gte: new Date(startDate), $lte: new Date(endDate) },
+          date: { $gte: startDateObj, $lte: endDateObj },
           status: 99, // Chaudière en fonctionnement
-          fanSpeed: { $gt: 0 } // Ventilateur en marche = combustion active
+          modulation: { $gt: 0 } // Modulation active = combustion réelle
         }
       },
       {
@@ -388,10 +428,13 @@ exports.calculateConsumption = async (req, res) => {
           _id: null,
           avgModulation: { $avg: '$modulation' },
           count: { $sum: 1 },
-          avgOutsideTemp: { $avg: '$outsideTemp' }
+          avgOutsideTemp: { $avg: '$outsideTemp' },
+          avgFanSpeed: { $avg: '$fanSpeed' }
         }
       }
     ]);
+
+    console.log('📊 Données période (status=99, modulation>0):', periodData[0] || 'aucune');
 
     const avgModulation = periodData[0]?.avgModulation || 60; // Default 60%
     const avgOutsideTemp = periodData[0]?.avgOutsideTemp || 10;
@@ -404,7 +447,7 @@ exports.calculateConsumption = async (req, res) => {
     const stats = await BoilerData.aggregate([
       {
         $match: {
-          date: { $gte: new Date(startDate), $lte: new Date(endDate) }
+          date: { $gte: startDateObj, $lte: endDateObj }
         }
       },
       {
@@ -420,6 +463,8 @@ exports.calculateConsumption = async (req, res) => {
       },
       { $sort: { _id: 1 } }
     ]);
+
+    console.log(`📈 Stats quotidiennes générées: ${stats.length} jours`);
 
     res.json({
       period: {

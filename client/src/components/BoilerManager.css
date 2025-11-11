@@ -671,6 +671,18 @@
   font-weight: 600;
 }
 
+.consumption-period {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #dee2e6;
+  text-align: left;
+}
+
+.consumption-period p {
+  margin: 0.5rem 0;
+  font-size: 0.95rem;
+}
+
 /* ======================================
    📋 HISTORIQUE
    ====================================== */

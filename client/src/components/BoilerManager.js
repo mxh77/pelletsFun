@@ -383,7 +383,13 @@ const BoilerManager = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post(`${API_URL}/api/boiler/consumption`, dateRange);
+      // Construire l'URL avec les paramètres de query
+      const params = new URLSearchParams({
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate
+      });
+      
+      const response = await axios.get(`${API_URL}/api/boiler/consumption?${params}`);
       setConsumption(response.data);
       setImportResult({ success: true, message: 'Calcul de consommation effectué avec succès' });
     } catch (error) {
@@ -852,20 +858,26 @@ const BoilerManager = () => {
                     <div className="consumption-stats">
                       <div className="consumption-card">
                         <h5>⏱️ Runtime Total</h5>
-                        <p>{consumption.totalRuntime?.toFixed(1)} heures</p>
+                        <p>{consumption.period?.runtimeHours?.toFixed(1) || 0} heures</p>
                       </div>
                       <div className="consumption-card">
                         <h5>🔥 Consommation Estimée</h5>
-                        <p>{consumption.estimatedConsumption?.toFixed(1)} kg pellets</p>
+                        <p>{consumption.consumption?.pelletKg?.toFixed(1) || 0} kg pellets</p>
                       </div>
                       <div className="consumption-card">
                         <h5>🌡️ Température Moyenne</h5>
-                        <p>{consumption.avgOutsideTemp?.toFixed(1)}°C</p>
+                        <p>{consumption.weather?.avgOutsideTempC?.toFixed(1) || 0}°C</p>
                       </div>
                       <div className="consumption-card">
                         <h5>📊 Modulation Moyenne</h5>
-                        <p>{consumption.avgModulation?.toFixed(1)}%</p>
+                        <p>{consumption.consumption?.avgModulationPercent?.toFixed(1) || 0}%</p>
                       </div>
+                    </div>
+                    
+                    {/* Période analysée */}
+                    <div className="consumption-period">
+                      <p><strong>📅 Période :</strong> {consumption.period?.startDate} au {consumption.period?.endDate}</p>
+                      <p><strong>⚡ Puissance effective :</strong> {consumption.consumption?.effectivePowerKW || 0} kW</p>
                     </div>
                   </div>
                 )}
