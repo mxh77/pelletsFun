@@ -189,15 +189,38 @@ class GmailService {
         }
       }
 
-      // Note: On ne filtre plus par date d'email ici
-      // Le filtrage se fera par date de fichier dans processOkofenEmails
+      // Élargir la fenêtre de recherche des emails : J-2 début, J+2 fin
       if (dateFrom || dateTo) {
         console.log('🗓️ Période personnalisée demandée (filtrage par date de fichier):', { dateFrom, dateTo });
-        // On récupère les emails des 30 derniers jours pour avoir une plage suffisante
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const fromStr = thirtyDaysAgo.toISOString().split('T')[0].replace(/-/g, '/');
-        query += ` after:${fromStr}`;
+        
+        let searchDateFrom, searchDateTo;
+        
+        if (dateFrom) {
+          // J-1 par rapport à la date de début
+          const startDate = new Date(dateFrom);
+          startDate.setDate(startDate.getDate() - 2);
+          searchDateFrom = startDate.toISOString().split('T')[0].replace(/-/g, '/');
+        }
+        
+        if (dateTo) {
+          // J+1 par rapport à la date de fin
+          const endDate = new Date(dateTo);
+          endDate.setDate(endDate.getDate() + 2);
+          searchDateTo = endDate.toISOString().split('T')[0].replace(/-/g, '/');
+        }
+        
+        // Ajouter les filtres de date à la requête Gmail
+        if (searchDateFrom) {
+          query += ` after:${searchDateFrom}`;
+        }
+        if (searchDateTo) {
+          query += ` before:${searchDateTo}`;
+        }
+        
+        console.log('📅 Fenêtre de recherche élargie:', { 
+          original: { dateFrom, dateTo },
+          search: { searchDateFrom, searchDateTo }
+        });
       }
 
       console.log('🔍 Recherche Gmail:', query);
@@ -540,8 +563,8 @@ class GmailService {
   /**
    * Vérifie si une date de fichier est dans la plage demandée
    * @param {Date} fileDate - Date du fichier
-   * @param {Date|null} dateFrom - Date de début (incluse)
-   * @param {Date|null} dateTo - Date de fin (incluse)
+   * @param {string|null} dateFrom - Date de début au format YYYY-MM-DD (incluse)
+   * @param {string|null} dateTo - Date de fin au format YYYY-MM-DD (incluse)
    * @returns {boolean} - True si le fichier est dans la plage
    */
   isFileInDateRange(fileDate, dateFrom, dateTo) {
@@ -553,14 +576,16 @@ class GmailService {
     const fileDateOnly = new Date(fileDate.getFullYear(), fileDate.getMonth(), fileDate.getDate());
     
     if (dateFrom) {
-      const fromDateOnly = new Date(dateFrom.getFullYear(), dateFrom.getMonth(), dateFrom.getDate());
+      const fromDate = new Date(dateFrom);
+      const fromDateOnly = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
       if (fileDateOnly < fromDateOnly) {
         return false;
       }
     }
 
     if (dateTo) {
-      const toDateOnly = new Date(dateTo.getFullYear(), dateTo.getMonth(), dateTo.getDate());
+      const toDate = new Date(dateTo);
+      const toDateOnly = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate());
       if (fileDateOnly > toDateOnly) {
         return false;
       }

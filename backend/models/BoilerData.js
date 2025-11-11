@@ -68,6 +68,10 @@ const boilerDataSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  fileSize: {
+    type: Number, // Taille du fichier en octets
+    required: false // Optionnel pour compatibilité avec données existantes
+  },
   importDate: {
     type: Date,
     default: Date.now

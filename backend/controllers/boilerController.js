@@ -157,7 +157,8 @@ exports.importUploadedCSV = async (req, res) => {
               status: parseInt(data['PE1 Status'] || data['PE1 Status ']) || 0,
               hotWaterInTemp: parseFloat((data['WW1 EinT Ist[°C]'] || data['WW1 EinT Ist[°C] '])?.replace(',', '.')) || 0,
               hotWaterOutTemp: parseFloat((data['WW1 AusT Ist[°C]'] || data['WW1 AusT Ist[°C] '])?.replace(',', '.')) || 0,
-              filename: originalFilename
+              filename: originalFilename,
+              fileSize: req.file.size // Taille du fichier en octets
             };
 
             // Valider les données essentielles
@@ -242,6 +243,10 @@ exports.importBoilerCSV = async (req, res) => {
       return res.status(404).json({ error: 'Fichier CSV non trouvé' });
     }
 
+    // Obtenir la taille du fichier
+    const fileStats = fs.statSync(csvPath);
+    const fileSize = fileStats.size;
+
     const results = [];
     let lineCount = 0;
 
@@ -277,7 +282,8 @@ exports.importBoilerCSV = async (req, res) => {
               status: parseInt(data['PE1 Status']) || 0,
               hotWaterInTemp: parseFloat(data['WW1 EinT Ist[°C]']?.replace(',', '.')) || 0,
               hotWaterOutTemp: parseFloat(data['WW1 AusT Ist[°C]']?.replace(',', '.')) || 0,
-              filename: filename
+              filename: filename,
+              fileSize: fileSize // Taille du fichier en octets
             };
 
             if (boilerEntry.runtime > 0) {
@@ -967,6 +973,7 @@ exports.getImportHistory = async (req, res) => {
           totalEntries: { $sum: 1 },
           firstImport: { $min: "$createdAt" },
           lastImport: { $max: "$createdAt" },
+          fileSize: { $first: "$fileSize" }, // Récupérer la taille stockée en base
           dateRange: {
             $addToSet: {
               $dateToString: {
@@ -989,6 +996,7 @@ exports.getImportHistory = async (req, res) => {
           totalEntries: 1,
           firstImport: 1,
           lastImport: 1,
+          fileSize: 1, // Inclure la taille du fichier
           dateRange: {
             $reduce: {
               input: "$dateRange",
@@ -1021,7 +1029,7 @@ exports.getImportHistory = async (req, res) => {
       }
     ]);
 
-    // Ajouter des informations sur les fichiers physiques s'ils existent
+    // Enrichir les stats avec les informations formatées
     const enrichedStats = fileStats.map(stat => {
       // Vérifier si le fichier existe dans les dossiers de téléchargement
       const possiblePaths = [
@@ -1031,26 +1039,33 @@ exports.getImportHistory = async (req, res) => {
       ];
 
       let fileExists = false;
-      let fileSize = 0;
       let filePath = null;
 
       for (const testPath of possiblePaths) {
         if (fs.existsSync(testPath)) {
           fileExists = true;
           filePath = testPath;
-          try {
-            fileSize = fs.statSync(testPath).size;
-          } catch (e) {
-            fileSize = 0;
-          }
           break;
+        }
+      }
+
+      // Utiliser la taille stockée en base, sinon fallback sur le fichier physique
+      let finalFileSize = 0;
+      if (stat.fileSize && stat.fileSize > 0) {
+        finalFileSize = Math.round(stat.fileSize / 1024); // Convertir en KB
+      } else if (fileExists && filePath) {
+        // Fallback pour les anciens imports sans taille stockée
+        try {
+          finalFileSize = Math.round(fs.statSync(filePath).size / 1024);
+        } catch (e) {
+          finalFileSize = 0;
         }
       }
 
       return {
         ...stat,
         fileExists,
-        fileSize: Math.round(fileSize / 1024), // KB
+        fileSize: finalFileSize, // KB
         filePath: fileExists ? filePath : null,
         status: stat.totalEntries > 0 ? 'success' : 'empty'
       };

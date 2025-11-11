@@ -29,6 +29,14 @@ const BoilerManager = () => {
 
   const API_URL = process.env.REACT_APP_API_URL || '';
 
+  // Fonction utilitaire pour formater la taille des fichiers
+  const formatFileSize = (sizeInKB) => {
+    if (!sizeInKB || sizeInKB === 0) return 'N/A';
+    if (sizeInKB < 1024) return `${sizeInKB} KB`;
+    const sizeInMB = (sizeInKB / 1024).toFixed(1);
+    return `${sizeInMB} MB`;
+  };
+
   // Fonction pour basculer l'état d'une section
   const toggleSection = (sectionKey) => {
     setExpandedSections(prev => ({
@@ -114,7 +122,7 @@ const BoilerManager = () => {
             entryCount: file.totalEntries,
             lastImportDate: file.lastImport,
             effectiveDate: effectiveDate,
-            avgFileSize: file.fileSize ? `${file.fileSize} KB` : 'N/A',
+            avgFileSize: formatFileSize(file.fileSize),
             dateRange: file.dateRange,
             avgOutsideTemp: file.avgOutsideTemp,
             status: file.status
@@ -497,7 +505,8 @@ const BoilerManager = () => {
                 </div>
                 <div className="period-help">
                   💡 <strong>Filtrage par date du fichier</strong> (ex: touch_20251102.csv = 02/11/2025)<br/>
-                  📧 <strong>Sans période :</strong> Import de tous les fichiers récents selon config Gmail
+                  � <strong>Recherche élargie :</strong> Emails de J-2 à J+2 pour capturer tous les fichiers pertinents<br/>
+                  �📧 <strong>Sans période :</strong> Import de tous les fichiers récents selon config Gmail
                 </div>
               </div>
               

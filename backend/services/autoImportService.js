@@ -429,6 +429,10 @@ class AutoImportService {
     const results = [];
     let lineCount = 0;
 
+    // Obtenir la taille du fichier
+    const fileStats = fs.statSync(filePath);
+    const fileSize = fileStats.size;
+
     // Obtenir l'intervalle de filtrage configuré depuis la base de données
     const importInterval = await this.getImportInterval();
     console.log(`📊 Pattern d'import configuré: toutes les ${importInterval} minute(s)`);
@@ -472,7 +476,8 @@ class AutoImportService {
               status: parseInt(data['PE1 Status'] || data['PE1 Status ']) || 0,
               hotWaterInTemp: parseFloat((data['WW1 EinT Ist[°C]'] || data['WW1 EinT Ist[°C] '])?.replace(',', '.')) || 0,
               hotWaterOutTemp: parseFloat((data['WW1 AusT Ist[°C]'] || data['WW1 AusT Ist[°C] '])?.replace(',', '.')) || 0,
-              filename: filename
+              filename: filename,
+              fileSize: fileSize // Taille du fichier en octets
             };
 
             if (boilerEntry.runtime > 0) {
