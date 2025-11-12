@@ -29,6 +29,8 @@ class TaskManager {
       details: {
         totalEmails: 0,
         processedEmails: 0,
+        totalFiles: 0,
+        processedFiles: 0,
         downloadedFiles: 0,
         importedFiles: 0,
         errors: 0,

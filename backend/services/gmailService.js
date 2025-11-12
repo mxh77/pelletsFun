@@ -489,6 +489,130 @@ class GmailService {
   }
 
   /**
+   * Traite directement une liste d'emails sans refaire la recherche
+   */
+  async processEmailsDirectly(emails, options = {}) {
+    try {
+      const {
+        downloadPath = path.join(process.cwd(), 'auto-downloads'),
+        processCallback = null,
+        markAsProcessed = true,
+        labelProcessed = 'PelletsFun-Traité'
+      } = options;
+
+      console.log(`🔄 Traitement direct de ${emails.length} emails...`);
+
+      let downloadedCount = 0;
+      let processedCount = 0;
+      const errors = [];
+
+      // Traiter chaque email directement
+      for (const email of emails) {
+        try {
+          console.log(`📧 Traitement email: ${email.subject} (${email.receivedDate.toLocaleString()})`);
+
+          // Télécharger chaque pièce jointe CSV
+          for (const attachment of email.attachments) {
+            try {
+              // Vérifier si le fichier correspond à la période demandée (par date de fichier)
+              if (options.dateFrom || options.dateTo) {
+                const fileDate = this.extractDateFromFilename(attachment.filename);
+                if (fileDate) {
+                  const shouldInclude = this.isFileInDateRange(fileDate, options.dateFrom, options.dateTo);
+                  if (!shouldInclude) {
+                    console.log(`📅 Fichier ${attachment.filename} (${fileDate.toISOString().split('T')[0]}) hors période demandée, ignoré`);
+                    continue;
+                  }
+                  console.log(`📅 Fichier ${attachment.filename} (${fileDate.toISOString().split('T')[0]}) dans la période, traitement`);
+                } else {
+                  console.log(`⚠️ Impossible d'extraire la date de ${attachment.filename}, traitement par défaut`);
+                }
+              }
+
+              const downloadResult = await this.downloadAttachment(
+                email.id,
+                attachment.attachmentId,
+                attachment.filename,
+                downloadPath
+              );
+
+              if (downloadResult.success) {
+                downloadedCount++;
+
+                // Enregistrer ou mettre à jour l'email comme traité dans la base de données
+                try {
+                  const processedData = {
+                    messageId: email.id,
+                    subject: email.subject,
+                    sender: email.from,
+                    emailDate: email.receivedDate,
+                    fileName: attachment.filename,
+                    fileHash: downloadResult.fileHash,
+                    status: 'processed',
+                    processedDate: new Date()
+                  };
+
+                  if (options.overwriteExisting) {
+                    // Mode écrasement: mettre à jour ou créer
+                    await ProcessedEmail.findOneAndUpdate(
+                      { messageId: email.id, fileName: attachment.filename },
+                      processedData,
+                      { upsert: true, new: true }
+                    );
+                    console.log(`🔄 Email mis à jour/créé: ${email.id}`);
+                  } else {
+                    // Mode normal: créer seulement
+                    await ProcessedEmail.create(processedData);
+                    console.log(`📝 Email enregistré comme traité: ${email.id}`);
+                  }
+                } catch (dbError) {
+                  console.error('⚠️ Erreur sauvegarde DB (non bloquante):', dbError.message);
+                }
+
+                // Callback personnalisé de traitement (ex: import CSV)
+                if (processCallback && typeof processCallback === 'function') {
+                  await processCallback(downloadResult.filePath, {
+                    email: email,
+                    attachment: attachment
+                  });
+                  processedCount++;
+                }
+              }
+
+            } catch (error) {
+              console.error(`Erreur pièce jointe ${attachment.filename}:`, error);
+              errors.push(`${attachment.filename}: ${error.message}`);
+            }
+          }
+
+          // Marquer comme traité
+          if (markAsProcessed) {
+            await this.addLabel(email.id, labelProcessed);
+            await this.markAsRead(email.id);
+          }
+
+        } catch (error) {
+          console.error(`Erreur traitement email ${email.id}:`, error);
+          errors.push(`Email ${email.id}: ${error.message}`);
+        }
+      }
+
+      console.log(`✅ Traitement direct terminé: ${downloadedCount} fichiers téléchargés, ${processedCount} traités`);
+
+      return {
+        success: true,
+        processed: processedCount,
+        downloaded: downloadedCount,
+        errors: errors
+      };
+
+    } catch (error) {
+      console.error('❌ Erreur traitement direct emails:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Processus complet de récupération et traitement des emails Okofen
    */
   async processOkofenEmails(options = {}) {

@@ -492,7 +492,14 @@ class AutoImportService {
               fileSize: fileSize // Taille du fichier en octets
             };
 
-            if (boilerEntry.runtime > 0) {
+            // Validation améliorée pour supporter les anciens formats CSV (sans PE1 Runtime[h])
+            // Critères: runtime > 0 OU (runtime == 0 ET boilerTemp > 0) OU (runtime undefined ET boilerTemp > 0)
+            const runtime = boilerEntry.runtime;
+            const boilerTemp = boilerEntry.boilerTemp;
+            
+            if ((runtime !== undefined && runtime > 0) || 
+                (runtime === 0 && boilerTemp > 0) || 
+                (runtime === undefined && boilerTemp > 0)) {
               results.push(boilerEntry);
             }
           } catch (error) {

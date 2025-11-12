@@ -678,6 +678,11 @@ const BoilerManager = () => {
                           📧 Emails: {taskStatus.details.processedEmails || 0} / {taskStatus.details.totalEmails}
                         </div>
                       )}
+                      {taskStatus.details.totalFiles > 0 && (
+                        <div className="detail-item">
+                          📄 Fichiers: {taskStatus.details.processedFiles || 0} / {taskStatus.details.totalFiles}
+                        </div>
+                      )}
                       {taskStatus.details.downloadedFiles > 0 && (
                         <div className="detail-item">
                           📥 Téléchargés: {taskStatus.details.downloadedFiles}

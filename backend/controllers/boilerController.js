@@ -142,27 +142,47 @@ exports.importUploadedCSV = async (req, res) => {
             
             if (isNaN(date.getTime())) return;
 
+            // Gérer les différents formats de fichiers (ancien/nouveau)
+            // Anciens fichiers: caractères □ au lieu de °
+            const runtime = parseFloat((data['PE1 Runtime[h]'] || data['PE1 Runtime[h] '])?.replace(',', '.')) || 0;
+            const modulation = parseFloat((data['PE1 Modulation[%]'] || data['PE1 Modulation[%] '])?.replace(',', '.')) || 0;
+            const boilerTemp = parseFloat((data['PE1 KT[°C]'] || data['PE1 KT[°C] '] || data['PE1 KT[□C]'])?.replace(',', '.')) || 0;
+
             const boilerEntry = {
               date: date,
               time: (data['Zeit '] || data.Zeit)?.trim() || '',
-              outsideTemp: parseFloat((data['AT [°C]'] || data['AT [°C] '])?.replace(',', '.')) || 0,
-              outsideTempActive: parseFloat((data['ATakt [°C]'] || data['ATakt [°C] '])?.replace(',', '.')) || 0,
-              heatingFlowTemp: parseFloat((data['HK1 VL Ist[°C]'] || data['HK1 VL Ist[°C] '])?.replace(',', '.')) || 0,
-              heatingFlowTempTarget: parseFloat((data['HK1 VL Soll[°C]'] || data['HK1 VL Soll[°C] '])?.replace(',', '.')) || 0,
-              boilerTemp: parseFloat((data['PE1 KT[°C]'] || data['PE1 KT[°C] '])?.replace(',', '.')) || 0,
-              boilerTempTarget: parseFloat((data['PE1 KT_SOLL[°C]'] || data['PE1 KT_SOLL[°C] '])?.replace(',', '.')) || 0,
-              modulation: parseFloat((data['PE1 Modulation[%]'] || data['PE1 Modulation[%] '])?.replace(',', '.')) || 0,
+              outsideTemp: parseFloat((data['AT [°C]'] || data['AT [°C] '] || data['AT [□C]'])?.replace(',', '.')) || 0,
+              outsideTempActive: parseFloat((data['ATakt [°C]'] || data['ATakt [°C] '] || data['ATakt [□C]'])?.replace(',', '.')) || 0,
+              heatingFlowTemp: parseFloat((data['HK1 VL Ist[°C]'] || data['HK1 VL Ist[°C] '] || data['HK1 VL Ist[□C]'])?.replace(',', '.')) || 0,
+              heatingFlowTempTarget: parseFloat((data['HK1 VL Soll[°C]'] || data['HK1 VL Soll[°C] '] || data['HK1 VL Soll[□C]'])?.replace(',', '.')) || 0,
+              boilerTemp: boilerTemp,
+              boilerTempTarget: parseFloat((data['PE1 KT_SOLL[°C]'] || data['PE1 KT_SOLL[°C] '] || data['PE1 KT_SOLL[□C]'])?.replace(',', '.')) || 0,
+              modulation: modulation,
               fanSpeed: parseFloat((data['PE1 Luefterdrehzahl[%]'] || data['PE1 Luefterdrehzahl[%] '])?.replace(',', '.')) || 0,
-              runtime: parseFloat((data['PE1 Runtime[h]'] || data['PE1 Runtime[h] '])?.replace(',', '.')) || 0,
+              runtime: runtime,
               status: parseInt(data['PE1 Status'] || data['PE1 Status ']) || 0,
-              hotWaterInTemp: parseFloat((data['WW1 EinT Ist[°C]'] || data['WW1 EinT Ist[°C] '])?.replace(',', '.')) || 0,
-              hotWaterOutTemp: parseFloat((data['WW1 AusT Ist[°C]'] || data['WW1 AusT Ist[°C] '])?.replace(',', '.')) || 0,
+              hotWaterInTemp: parseFloat((data['WW1 EinT Ist[°C]'] || data['WW1 EinT Ist[°C] '] || data['WW1 EinT Ist[□C]'])?.replace(',', '.')) || 0,
+              hotWaterOutTemp: parseFloat((data['WW1 AusT Ist[°C]'] || data['WW1 AusT Ist[°C] '] || data['WW1 AusT Ist[□C]'])?.replace(',', '.')) || 0,
               filename: originalFilename,
               fileSize: req.file.size // Taille du fichier en octets
             };
 
-            // Valider les données essentielles
-            if (boilerEntry.runtime > 0) {
+            // Critère de validation adapté au format de fichier
+            // Nouveau format: runtime > 0
+            // Ancien format (sans runtime): accepter si les données semblent cohérentes
+            // (température chaudière > 0 ET date valide) - la chaudière peut être à l'arrêt (modulation=0) mais avoir une température de base
+            // Si runtime n'existe pas (undefined), on valide uniquement sur la température
+            if (lineCount <= 5) {
+              console.log(`🔍 DEBUG validation ligne ${lineCount}: runtime=${runtime}, boilerTemp=${boilerTemp}, date=${!isNaN(date.getTime())}`);
+            }
+            const isValidEntry = (runtime !== undefined && runtime > 0) || 
+                                 (runtime === 0 && boilerTemp > 0 && !isNaN(date.getTime())) ||
+                                 (runtime === undefined && boilerTemp > 0 && !isNaN(date.getTime()));
+            if (lineCount <= 5) {
+              console.log(`✅ DEBUG résultat validation ligne ${lineCount}: ${isValidEntry}`);
+            }
+
+            if (isValidEntry) {
               results.push(boilerEntry);
             }
           } catch (error) {
@@ -267,26 +287,52 @@ exports.importBoilerCSV = async (req, res) => {
               return;
             }
 
+            // Gérer les différents formats de fichiers (ancien/nouveau)
+            // Anciens fichiers: caractères □ au lieu de °
+            const runtime = parseFloat(data['PE1 Runtime[h]']?.replace(',', '.')) || 0;
+            const modulation = parseFloat((data['PE1 Modulation[%]'] || data['PE1 Modulation[%] '])?.replace(',', '.')) || 0;
+            const boilerTemp = parseFloat((data['PE1 KT[°C]'] || data['PE1 KT[□C]'])?.replace(',', '.')) || 0;
+            
+            // Debug pour les anciens fichiers
+            if (lineCount <= 5) {
+              console.log(`Ligne ${lineCount} - Runtime: ${runtime}, Modulation: ${modulation}, BoilerTemp: ${boilerTemp}`);
+            }
+            
             const boilerEntry = {
               date: date,
               time: data.Zeit?.trim() || '',
-              outsideTemp: parseFloat(data['AT [°C]']?.replace(',', '.')) || 0,
-              outsideTempActive: parseFloat(data['ATakt [°C]']?.replace(',', '.')) || 0,
-              heatingFlowTemp: parseFloat(data['HK1 VL Ist[°C]']?.replace(',', '.')) || 0,
-              heatingFlowTempTarget: parseFloat(data['HK1 VL Soll[°C]']?.replace(',', '.')) || 0,
-              boilerTemp: parseFloat(data['PE1 KT[°C]']?.replace(',', '.')) || 0,
-              boilerTempTarget: parseFloat(data['PE1 KT_SOLL[°C]']?.replace(',', '.')) || 0,
-              modulation: parseFloat(data['PE1 Modulation[%]']?.replace(',', '.')) || 0,
-              fanSpeed: parseFloat(data['PE1 Luefterdrehzahl[%]']?.replace(',', '.')) || 0,
-              runtime: parseFloat(data['PE1 Runtime[h]']?.replace(',', '.')) || 0,
+              outsideTemp: parseFloat((data['AT [°C]'] || data['AT [□C]'])?.replace(',', '.')) || 0,
+              outsideTempActive: parseFloat((data['ATakt [°C]'] || data['ATakt [□C]'])?.replace(',', '.')) || 0,
+              heatingFlowTemp: parseFloat((data['HK1 VL Ist[°C]'] || data['HK1 VL Ist[□C]'])?.replace(',', '.')) || 0,
+              heatingFlowTempTarget: parseFloat((data['HK1 VL Soll[°C]'] || data['HK1 VL Soll[□C]'])?.replace(',', '.')) || 0,
+              boilerTemp: boilerTemp,
+              boilerTempTarget: parseFloat((data['PE1 KT_SOLL[°C]'] || data['PE1 KT_SOLL[□C]'])?.replace(',', '.')) || 0,
+              modulation: modulation,
+              fanSpeed: parseFloat((data['PE1 Luefterdrehzahl[%]'] || data['PE1 Luefterdrehzahl[%] '])?.replace(',', '.')) || 0,
+              runtime: runtime,
               status: parseInt(data['PE1 Status']) || 0,
-              hotWaterInTemp: parseFloat(data['WW1 EinT Ist[°C]']?.replace(',', '.')) || 0,
-              hotWaterOutTemp: parseFloat(data['WW1 AusT Ist[°C]']?.replace(',', '.')) || 0,
+              hotWaterInTemp: parseFloat((data['WW1 EinT Ist[°C]'] || data['WW1 EinT Ist[□C]'])?.replace(',', '.')) || 0,
+              hotWaterOutTemp: parseFloat((data['WW1 AusT Ist[°C]'] || data['WW1 AusT Ist[□C]'])?.replace(',', '.')) || 0,
               filename: filename,
               fileSize: fileSize // Taille du fichier en octets
             };
 
-            if (boilerEntry.runtime > 0) {
+            // Critère de validation adapté au format de fichier
+            // Nouveau format: runtime > 0
+            // Ancien format (sans runtime): accepter si les données semblent cohérentes
+            // (température chaudière > 0 ET date valide) - la chaudière peut être à l'arrêt (modulation=0) mais avoir une température de base
+            // Si runtime n'existe pas (undefined), on valide uniquement sur la température
+            if (lineCount <= 5) {
+              console.log(`🔍 DEBUG Gmail ligne ${lineCount}: runtime=${runtime}, boilerTemp=${boilerTemp}, date=${!isNaN(date.getTime())}`);
+            }
+            const isValidEntry = (runtime !== undefined && runtime > 0) || 
+                                 (runtime === 0 && boilerTemp > 0 && !isNaN(date.getTime())) ||
+                                 (runtime === undefined && boilerTemp > 0 && !isNaN(date.getTime()));
+            if (lineCount <= 5) {
+              console.log(`✅ DEBUG Gmail résultat ligne ${lineCount}: ${isValidEntry}`);
+            }
+            
+            if (isValidEntry) {
               results.push(boilerEntry);
             }
           } catch (error) {
@@ -1382,21 +1428,96 @@ async function processGmailImportAsync(taskId, params) {
 
     // D'abord, faire une recherche pour obtenir le nombre total
     const searchResult = await gmailService.searchOkofenEmails(gmailOptions);
-    if (searchResult.totalFound > 0) {
+    
+    // Compter le nombre total de fichiers à traiter
+    let totalFiles = 0;
+    if (searchResult.emails && searchResult.emails.length > 0) {
+      totalFiles = searchResult.emails.reduce((total, email) => {
+        return total + email.attachments.length;
+      }, 0);
+      
       taskManager.updateTaskStatus(taskId, 'running', 25, { 
-        currentStep: `${searchResult.totalFound} emails trouvés, démarrage du traitement...`,
+        currentStep: `${searchResult.totalFound} emails trouvés, ${totalFiles} fichiers à traiter...`,
         totalEmails: searchResult.totalFound,
+        totalFiles: totalFiles,
+        processedFiles: 0,
         pagesProcessed: searchResult.pagesProcessed || 1
       });
-      taskManager.addTaskLog(taskId, 'info', `Recherche terminée: ${searchResult.totalFound} emails trouvés sur ${searchResult.pagesProcessed || 1} page(s)`);
+      taskManager.addTaskLog(taskId, 'info', `Recherche terminée: ${searchResult.totalFound} emails trouvés, ${totalFiles} fichiers CSV à traiter sur ${searchResult.pagesProcessed || 1} page(s)`);
+    } else {
+      taskManager.updateTaskStatus(taskId, 'running', 100, { 
+        currentStep: 'Aucun fichier à traiter.' 
+      });
+      taskManager.addTaskLog(taskId, 'info', 'Aucun email avec fichiers CSV trouvé');
+      
+      // Terminer la tâche immédiatement s'il n'y a pas de fichiers
+      const emptyResult = {
+        entriesBefore: statsBefore,
+        entriesAfter: statsBefore,
+        newEntries: 0,
+        filesBefore: filesBefore.length,
+        filesAfter: filesBefore.length,
+        newFiles: 0,
+        importDetails: { downloaded: 0, processed: 0, errors: [] }
+      };
+      taskManager.completeTask(taskId, emptyResult);
+      return;
     }
 
-    // Étape 6: Traitement des emails
+    // Étape 6: Traitement des emails avec callback de progression
     taskManager.updateTaskStatus(taskId, 'running', 30, { 
       currentStep: 'Traitement et téléchargement des pièces jointes...' 
     });
 
-    const importResult = await gmailService.processOkofenEmails(gmailOptions);
+    // Modifier les options pour inclure un callback de progression par fichier
+    const originalCallback = gmailOptions.processCallback;
+    let processedFiles = 0;
+    let downloadedCount = 0;
+    
+    gmailOptions.processCallback = async (filePath, context) => {
+      processedFiles++;
+      
+      // Calculer le pourcentage basé sur les fichiers traités (30% à 85% de la progression totale)
+      const fileProgress = Math.round(30 + (processedFiles / totalFiles) * 55);
+      
+      taskManager.updateTaskStatus(taskId, 'running', fileProgress, {
+        currentStep: `Import CSV: ${context.attachment.filename} (${processedFiles}/${totalFiles})...`,
+        processedFiles: processedFiles,
+        totalFiles: totalFiles,
+        downloadedFiles: processedFiles // Mise à jour du nombre de téléchargements
+      });
+      
+      // Appeler le callback original s'il existe
+      if (originalCallback) {
+        try {
+          const result = await originalCallback(filePath, context);
+          
+          // Mettre à jour le nombre de fichiers importés
+          taskManager.updateTaskStatus(taskId, 'running', fileProgress, {
+            currentStep: `Import CSV: ${context.attachment.filename} terminé (${processedFiles}/${totalFiles})`,
+            processedFiles: processedFiles,
+            totalFiles: totalFiles,
+            downloadedFiles: processedFiles,
+            importedFiles: processedFiles
+          });
+          
+          return result;
+        } catch (importError) {
+          taskManager.addTaskLog(taskId, 'error', `Erreur import ${context.attachment.filename}: ${importError.message}`);
+          throw importError;
+        }
+      }
+    };
+
+    // Traitement direct des emails déjà trouvés pour éviter une double recherche
+    let importResult;
+    if (searchResult.emails && searchResult.emails.length > 0) {
+      // Utiliser les emails déjà trouvés au lieu de refaire une recherche
+      importResult = await gmailService.processEmailsDirectly(searchResult.emails, gmailOptions);
+    } else {
+      // Fallback: utiliser la méthode normale si searchResult ne contient pas les emails
+      importResult = await gmailService.processOkofenEmails(gmailOptions);
+    }
 
     // Étape 7: Nettoyage et statistiques finales
     taskManager.updateTaskStatus(taskId, 'running', 90, { 

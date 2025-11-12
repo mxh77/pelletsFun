@@ -31,4 +31,4 @@ app.use('/api/gmail', require('./routes/gmail'));
 app.listen(PORTS.BACKEND, () => {
   console.log(`🚀 Backend Express server running on ${PORTS.BACKEND_URL}`);
   console.log(`🔗 Frontend should be available at ${PORTS.FRONTEND_URL}`);
-});
+});// Debug update
