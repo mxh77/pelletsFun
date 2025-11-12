@@ -80,7 +80,11 @@ sudo rm -rf /var/www/pelletsfun/*
 sudo cp -r build/* /var/www/pelletsfun/
 sudo chown -R www-data:www-data /var/www/pelletsfun
 
-echo "🧹 Vidage cache Nginx..."
+echo "⚙️ Mise à jour configuration Nginx..."
+sudo cp /home/pelletsfun/pelletsFun/deployment/nginx-pelletsfun.conf /etc/nginx/sites-available/pelletsfun
+sudo nginx -t
+
+echo "🧹 Rechargement Nginx..."
 sudo nginx -s reload
 
 echo "🔄 Redémarrage services..."
