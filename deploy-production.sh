@@ -76,16 +76,12 @@ npm install
 npm run build
 
 echo "📋 Copie des fichiers..."
-sudo rm -rf /var/www/pelletsfun/*
-sudo cp -r build/* /var/www/pelletsfun/
-sudo chown -R www-data:www-data /var/www/pelletsfun
+sudo rm -rf /var/www/pelletsfun/* || true
+sudo cp -r build/* /var/www/pelletsfun/ || true
+sudo chown -R www-data:www-data /var/www/pelletsfun || true
 
-echo "⚙️ Mise à jour configuration Nginx..."
-sudo cp /home/pelletsfun/pelletsFun/deployment/nginx-pelletsfun.conf /etc/nginx/sites-available/pelletsfun
-sudo nginx -t
-
-echo "🧹 Rechargement Nginx..."
-sudo nginx -s reload
+echo "🚀 Déploiement côté serveur..."
+sudo /usr/local/bin/deploy-pelletsfun.sh
 
 echo "🔄 Redémarrage services..."
 pm2 restart pelletsfun-backend
