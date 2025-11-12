@@ -16,7 +16,7 @@ const BoilerManager = () => {
   const [importHistory, setImportHistory] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
   const [selectedYear, setSelectedYear] = useState(null);
-  const [selectedMonth, setSelectedMonth] = useState(null);
+  const [selectedMonths, setSelectedMonths] = useState([]);
   
   // États pour l'import manuel
   const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
@@ -136,9 +136,16 @@ const BoilerManager = () => {
           lastImportDate: file.lastImport,
           effectiveDate: effectiveDate,
           avgFileSize: formatFileSize(file.fileSize),
-          dateRange: file.dateRange,
           avgOutsideTemp: file.avgOutsideTemp,
-          status: file.status
+          status: file.status,
+          // Nouvelles statistiques de la chaudière (avec valeurs par défaut sûres)
+          activityRate: typeof file.activityRate === 'number' ? Math.round(file.activityRate * 10) / 10 : null,
+          avgBoilerTemp: typeof file.avgBoilerTemp === 'number' ? Math.round(file.avgBoilerTemp * 10) / 10 : null,
+          maxBoilerTemp: typeof file.maxBoilerTemp === 'number' ? Math.round(file.maxBoilerTemp * 10) / 10 : null,
+          avgModulation: typeof file.avgModulation === 'number' ? Math.round(file.avgModulation * 10) / 10 : null,
+          runtimeRange: typeof file.runtimeRange === 'string' ? file.runtimeRange : null,
+          avgFanSpeed: typeof file.avgFanSpeed === 'number' ? Math.round(file.avgFanSpeed * 10) / 10 : null,
+          activeEntries: typeof file.activeEntries === 'number' ? file.activeEntries : null
         };
       });
 
@@ -180,11 +187,30 @@ const BoilerManager = () => {
       const availableYears = Object.keys(organizedByYear).sort((a, b) => b - a);
       if (availableYears.length > 0 && !selectedYear) {
         setSelectedYear(availableYears[0]);
+      }
+
+      // Sélectionner automatiquement les 3 derniers mois (toutes années confondues) si aucune sélection
+      if (selectedMonths.length === 0) {
+        // Créer une liste de tous les mois disponibles avec leur date
+        const allAvailableMonths = [];
         
-        // Sélectionner automatiquement le mois le plus récent de cette année
-        const availableMonths = Object.keys(organizedByYear[availableYears[0]]).sort((a, b) => b - a);
-        if (availableMonths.length > 0) {
-          setSelectedMonth(availableMonths[0]);
+        Object.keys(organizedByYear).forEach(year => {
+          Object.keys(organizedByYear[year]).forEach(month => {
+            // Prendre la date du fichier le plus récent de ce mois
+            const latestFileDate = organizedByYear[year][month][0].effectiveDate;
+            allAvailableMonths.push({
+              yearMonth: `${year}-${month}`,
+              date: latestFileDate
+            });
+          });
+        });
+
+        // Trier par date décroissante et prendre les 3 plus récents
+        allAvailableMonths.sort((a, b) => b.date - a.date);
+        const recentMonthIds = allAvailableMonths.slice(0, 3).map(item => item.yearMonth);
+        
+        if (recentMonthIds.length > 0) {
+          setSelectedMonths(recentMonthIds);
         }
       }
       
@@ -993,11 +1019,7 @@ const BoilerManager = () => {
                               className={`year-tab ${selectedYear === year ? 'active' : ''}`}
                               onClick={() => {
                                 setSelectedYear(year);
-                                // Auto-sélectionner le mois le plus récent
-                                const months = Object.keys(importHistory.organizedByYear[year]).sort((a, b) => b - a);
-                                if (months.length > 0) {
-                                  setSelectedMonth(months[0]);
-                                }
+                                // Ne plus changer automatiquement la sélection des mois
                               }}
                             >
                               📅 {year}
@@ -1005,54 +1027,126 @@ const BoilerManager = () => {
                           ))}
                       </div>
 
-                      {/* Onglets Niveau 2: Mois */}
-                      {selectedYear && importHistory.organizedByYear[selectedYear] && (
+                      {/* Sélection multiple: Mois de l'année sélectionnée */}
+                      {selectedYear && importHistory && importHistory.organizedByYear[selectedYear] && (
                         <div className="month-tabs">
-                          {Object.keys(importHistory.organizedByYear[selectedYear])
-                            .sort((a, b) => b - a)
-                            .map(month => (
-                              <button
-                                key={month}
-                                className={`month-tab ${selectedMonth === month ? 'active' : ''}`}
-                                onClick={() => setSelectedMonth(month)}
-                              >
-                                🗓️ {getMonthName(month)}
-                              </button>
-                            ))}
+                          <div className="month-checkboxes">
+                            {/* Générer les mois de l'année sélectionnée uniquement */}
+                            {Object.keys(importHistory.organizedByYear[selectedYear])
+                              .sort((a, b) => b - a) // Mois décroissants
+                              .map(month => {
+                                const yearMonth = `${selectedYear}-${month}`;
+                                const files = importHistory.organizedByYear[selectedYear][month];
+                                
+                                return (
+                                  <label key={yearMonth} className="month-checkbox-label">
+                                    <input
+                                      type="checkbox"
+                                      className="month-checkbox"
+                                      checked={selectedMonths.includes(yearMonth)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setSelectedMonths(prev => [...prev, yearMonth]);
+                                        } else {
+                                          setSelectedMonths(prev => prev.filter(m => m !== yearMonth));
+                                        }
+                                      }}
+                                    />
+                                    <span className="month-checkbox-text">
+                                      <span>🗓️ {getMonthName(month)} {selectedYear}</span>
+                                      <small className="files-count">
+                                        ({files.length} fichiers)
+                                      </small>
+                                    </span>
+                                  </label>
+                                );
+                              })}
+                          </div>
                         </div>
                       )}
 
-                      {/* Tableau des fichiers du mois sélectionné */}
-                      {selectedYear && selectedMonth && importHistory.organizedByYear[selectedYear][selectedMonth] && (
+                      {/* Tableau des fichiers des mois sélectionnés */}
+                      {selectedMonths.length > 0 && (
                         <div className="history-table-container">
-                          <h4>📁 Fichiers de {getMonthName(selectedMonth)} {selectedYear}</h4>
+                          <h4>📁 Fichiers de {selectedMonths.length === 1 
+                            ? (() => {
+                                const [year, month] = selectedMonths[0].split('-');
+                                return `${getMonthName(month)} ${year}`;
+                              })()
+                            : `${selectedMonths.length} mois sélectionnés`}
+                          </h4>
                           <table className="history-table">
                             <thead>
                               <tr>
                                 <th>📁 Fichier</th>
                                 <th>📊 Entrées</th>
+                                <th>� Activité</th>
+                                <th>🌡️ Temp. Moy.</th>
+                                <th>📊 Modulation</th>
+                                <th>⏱️ Runtime</th>
                                 <th>📅 Date Effective</th>
-                                <th>📅 Date Import</th>
                                 <th>📏 Taille</th>
                                 <th>⚙️ Actions</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {importHistory.organizedByYear[selectedYear][selectedMonth].map((file, index) => (
+                              {selectedMonths.flatMap(yearMonth => {
+                                const [year, month] = yearMonth.split('-');
+                                return importHistory.organizedByYear[year]?.[month] || [];
+                              })
+                              .sort((a, b) => b.effectiveDate - a.effectiveDate)
+                              .map((file, index) => (
                                 <tr key={index}>
                                   <td className="file-name">{file.filename}</td>
                                   <td className="entry-count">{file.entryCount?.toLocaleString()}</td>
+                                  <td className="activity-cell">
+                                    {file.activityRate !== null && file.activityRate !== undefined ? (
+                                      <div className="activity-content">
+                                        <span className={`activity-indicator ${file.activityRate > 50 ? 'high' : file.activityRate > 20 ? 'medium' : 'low'}`}>
+                                          {file.activityRate > 50 ? '🔥' : file.activityRate > 20 ? '🟡' : '🔵'}
+                                        </span>
+                                        <span className="activity-rate">{file.activityRate}%</span>
+                                      </div>
+                                    ) : (
+                                      <span className="activity-na">-</span>
+                                    )}
+                                  </td>
+                                  <td className="temp-cell">
+                                    {file.avgBoilerTemp !== null && file.avgBoilerTemp !== undefined ? (
+                                      <>
+                                        <span className="temp-value">{file.avgBoilerTemp}°C</span>
+                                        {file.maxBoilerTemp !== null && file.maxBoilerTemp !== undefined && (
+                                          <span className="temp-max"> (max: {file.maxBoilerTemp}°C)</span>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <span className="temp-na">-</span>
+                                    )}
+                                  </td>
+                                  <td className="modulation-cell">
+                                    {file.avgModulation !== null && file.avgModulation !== undefined ? (
+                                      <span className={`modulation-value ${file.avgModulation > 70 ? 'high' : file.avgModulation > 40 ? 'medium' : 'low'}`}>
+                                        {file.avgModulation}%
+                                      </span>
+                                    ) : (
+                                      <span className="modulation-na">-</span>
+                                    )}
+                                  </td>
+                                  <td className="runtime-cell">
+                                    {file.runtimeRange !== null && file.runtimeRange !== undefined && file.runtimeRange !== '' ? (
+                                      <span className="runtime-range">{file.runtimeRange}</span>
+                                    ) : (
+                                      <span className="runtime-na">-</span>
+                                    )}
+                                  </td>
                                   <td className="effective-date">
                                     {file.effectiveDate.toLocaleDateString('fr-FR')}
-                                  </td>
-                                  <td className="import-date">
-                                    {new Date(file.lastImportDate).toLocaleString('fr-FR')}
                                   </td>
                                   <td className="file-size">{file.avgFileSize || 'N/A'}</td>
                                   <td className="actions-cell">
                                     <button 
                                       onClick={() => deleteImportFile(file.filename)}
-                                      disabled={loading}
+                                      disabled={false}
                                       className="btn-delete-import"
                                       title={`Supprimer l'import "${file.filename}"`}
                                     >

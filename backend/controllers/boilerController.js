@@ -1061,7 +1061,28 @@ exports.getImportHistory = async (req, res) => {
             $sum: { 
               $cond: [{ $gt: ["$runtime", 0] }, 1, 0] 
             } 
-          }
+          },
+          // Nouvelles statistiques pour détection arrêt/marche
+          avgBoilerTemp: { $avg: "$boilerTemp" },
+          maxBoilerTemp: { $max: "$boilerTemp" },
+          avgModulation: { $avg: "$modulation" },
+          maxRuntime: { $max: "$runtime" },
+          minRuntime: { $min: "$runtime" },
+          avgFanSpeed: { $avg: "$fanSpeed" },
+          // Compter les entrées avec différents statuts
+          activeEntries: { 
+            $sum: { 
+              $cond: [
+                { $and: [
+                  { $gt: ["$boilerTemp", 40] },
+                  { $gt: ["$modulation", 0] }
+                ]}, 
+                1, 0 
+              ] 
+            } 
+          },
+          // Statuts les plus fréquents
+          statusStats: { $push: "$status" }
         }
       },
       {
@@ -1095,6 +1116,24 @@ exports.getImportHistory = async (req, res) => {
           },
           avgOutsideTemp: { $round: ["$avgOutsideTemp", 1] },
           totalRuntime: 1,
+          // Nouvelles stats formatées
+          avgBoilerTemp: { $round: ["$avgBoilerTemp", 1] },
+          maxBoilerTemp: { $round: ["$maxBoilerTemp", 1] },
+          avgModulation: { $round: ["$avgModulation", 1] },
+          runtimeRange: {
+            min: "$minRuntime",
+            max: "$maxRuntime"
+          },
+          avgFanSpeed: { $round: ["$avgFanSpeed", 0] },
+          activeEntries: 1,
+          activityRate: { 
+            $round: [{ 
+              $multiply: [
+                { $divide: ["$activeEntries", "$totalEntries"] }, 
+                100
+              ] 
+            }, 1] 
+          },
           _id: 0
         }
       },
