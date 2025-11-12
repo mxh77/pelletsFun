@@ -15,6 +15,8 @@ const BoilerManager = () => {
   const [cronSchedule, setCronSchedule] = useState('0 8 * * *');
   const [importHistory, setImportHistory] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(null);
+  const [selectedMonth, setSelectedMonth] = useState(null);
   
   // États pour l'import manuel
   const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
@@ -41,6 +43,15 @@ const BoilerManager = () => {
     if (sizeInKB < 1024) return `${sizeInKB} KB`;
     const sizeInMB = (sizeInKB / 1024).toFixed(1);
     return `${sizeInMB} MB`;
+  };
+
+  // Fonction pour obtenir le nom du mois en français
+  const getMonthName = (monthIndex) => {
+    const months = [
+      'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+      'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+    ];
+    return months[parseInt(monthIndex)];
   };
 
   // Fonction pour basculer l'état d'une section
@@ -97,46 +108,85 @@ const BoilerManager = () => {
       const response = await axios.get(`${API_URL}/api/boiler/import-history`);
       
       // Adapter la structure des données pour l'interface
+      const processedFiles = response.data.files.map(file => {
+        // Calculer la date effective basée sur les données du fichier
+        let effectiveDate = new Date(file.lastImport); // Fallback sur date import
+        
+        // D'abord essayer d'extraire la date du nom du fichier (ex: touch_20251031.csv)
+        const dateMatch = file.filename.match(/(\d{8})/);
+        if (dateMatch) {
+          const dateStr = dateMatch[1]; // ex: "20251031"
+          const year = dateStr.substring(0, 4);
+          const month = dateStr.substring(4, 6);
+          const day = dateStr.substring(6, 8);
+          const extractedDate = new Date(`${year}-${month}-${day}`);
+          
+          if (!isNaN(extractedDate.getTime())) {
+            effectiveDate = extractedDate;
+          }
+        }
+        // Sinon utiliser dateRange.max si disponible
+        else if (file.dateRange && file.dateRange.max) {
+          effectiveDate = new Date(file.dateRange.max);
+        }
+        
+        return {
+          filename: file.filename,
+          entryCount: file.totalEntries,
+          lastImportDate: file.lastImport,
+          effectiveDate: effectiveDate,
+          avgFileSize: formatFileSize(file.fileSize),
+          dateRange: file.dateRange,
+          avgOutsideTemp: file.avgOutsideTemp,
+          status: file.status
+        };
+      });
+
+      // Organiser par année et mois
+      const organizedByYear = {};
+      processedFiles.forEach(file => {
+        const year = file.effectiveDate.getFullYear().toString();
+        const month = file.effectiveDate.getMonth(); // 0-11
+        
+        if (!organizedByYear[year]) {
+          organizedByYear[year] = {};
+        }
+        
+        if (!organizedByYear[year][month]) {
+          organizedByYear[year][month] = [];
+        }
+        
+        organizedByYear[year][month].push(file);
+      });
+
+      // Trier les fichiers de chaque mois par date (plus récent d'abord)
+      Object.keys(organizedByYear).forEach(year => {
+        Object.keys(organizedByYear[year]).forEach(month => {
+          organizedByYear[year][month].sort((a, b) => b.effectiveDate - a.effectiveDate);
+        });
+      });
+
       const adaptedData = {
         success: response.data.success,
         summary: {
           uniqueFiles: response.data.totalFiles,
           totalEntries: response.data.totalEntries
         },
-        files: response.data.files.map(file => {
-          // Calculer la date effective basée sur les données du fichier
-          let effectiveDate = new Date(file.lastImport); // Fallback sur date import
-          
-          // D'abord essayer d'extraire la date du nom du fichier (ex: touch_20251031.csv)
-          const dateMatch = file.filename.match(/(\d{8})/);
-          if (dateMatch) {
-            const dateStr = dateMatch[1]; // ex: "20251031"
-            const year = dateStr.substring(0, 4);
-            const month = dateStr.substring(4, 6);
-            const day = dateStr.substring(6, 8);
-            const extractedDate = new Date(`${year}-${month}-${day}`);
-            
-            if (!isNaN(extractedDate.getTime())) {
-              effectiveDate = extractedDate;
-            }
-          }
-          // Sinon utiliser dateRange.max si disponible
-          else if (file.dateRange && file.dateRange.max) {
-            effectiveDate = new Date(file.dateRange.max);
-          }
-          
-          return {
-            filename: file.filename,
-            entryCount: file.totalEntries,
-            lastImportDate: file.lastImport,
-            effectiveDate: effectiveDate,
-            avgFileSize: formatFileSize(file.fileSize),
-            dateRange: file.dateRange,
-            avgOutsideTemp: file.avgOutsideTemp,
-            status: file.status
-          };
-        })
+        files: processedFiles,
+        organizedByYear: organizedByYear
       };
+
+      // Sélectionner automatiquement l'année la plus récente
+      const availableYears = Object.keys(organizedByYear).sort((a, b) => b - a);
+      if (availableYears.length > 0 && !selectedYear) {
+        setSelectedYear(availableYears[0]);
+        
+        // Sélectionner automatiquement le mois le plus récent de cette année
+        const availableMonths = Object.keys(organizedByYear[availableYears[0]]).sort((a, b) => b - a);
+        if (availableMonths.length > 0) {
+          setSelectedMonth(availableMonths[0]);
+        }
+      }
       
       setImportHistory(adaptedData);
     } catch (error) {
@@ -930,43 +980,91 @@ const BoilerManager = () => {
                     </div>
                   </div>
 
-                  {importHistory.files && importHistory.files.length > 0 && (
-                    <div>
-                      <div className="history-table-container">
-                      <table className="history-table">
-                        <thead>
-                          <tr>
-                            <th>📁 Fichier</th>
-                            <th>📊 Entrées</th>
-                            <th>📅 Date Import</th>
-                            <th>📏 Taille</th>
-                            <th>⚙️ Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {importHistory.files.map((file, index) => (
-                            <tr key={index}>
-                              <td className="file-name">{file.filename}</td>
-                              <td className="entry-count">{file.entryCount?.toLocaleString()}</td>
-                              <td className="import-date">
-                                {new Date(file.lastImportDate).toLocaleString('fr-FR')}
-                              </td>
-                              <td className="file-size">{file.avgFileSize || 'N/A'}</td>
-                              <td className="actions-cell">
-                                <button 
-                                  onClick={() => deleteImportFile(file.filename)}
-                                  disabled={loading}
-                                  className="btn-delete-import"
-                                  title={`Supprimer l'import "${file.filename}"`}
-                                >
-                                  🗑️
-                                </button>
-                              </td>
-                            </tr>
+                  {/* Système d'onglets à deux niveaux */}
+                  {importHistory.organizedByYear && Object.keys(importHistory.organizedByYear).length > 0 && (
+                    <div className="history-tabs-container">
+                      {/* Onglets Niveau 1: Années */}
+                      <div className="year-tabs">
+                        {Object.keys(importHistory.organizedByYear)
+                          .sort((a, b) => b - a)
+                          .map(year => (
+                            <button
+                              key={year}
+                              className={`year-tab ${selectedYear === year ? 'active' : ''}`}
+                              onClick={() => {
+                                setSelectedYear(year);
+                                // Auto-sélectionner le mois le plus récent
+                                const months = Object.keys(importHistory.organizedByYear[year]).sort((a, b) => b - a);
+                                if (months.length > 0) {
+                                  setSelectedMonth(months[0]);
+                                }
+                              }}
+                            >
+                              📅 {year}
+                            </button>
                           ))}
-                        </tbody>
-                      </table>
                       </div>
+
+                      {/* Onglets Niveau 2: Mois */}
+                      {selectedYear && importHistory.organizedByYear[selectedYear] && (
+                        <div className="month-tabs">
+                          {Object.keys(importHistory.organizedByYear[selectedYear])
+                            .sort((a, b) => b - a)
+                            .map(month => (
+                              <button
+                                key={month}
+                                className={`month-tab ${selectedMonth === month ? 'active' : ''}`}
+                                onClick={() => setSelectedMonth(month)}
+                              >
+                                🗓️ {getMonthName(month)}
+                              </button>
+                            ))}
+                        </div>
+                      )}
+
+                      {/* Tableau des fichiers du mois sélectionné */}
+                      {selectedYear && selectedMonth && importHistory.organizedByYear[selectedYear][selectedMonth] && (
+                        <div className="history-table-container">
+                          <h4>📁 Fichiers de {getMonthName(selectedMonth)} {selectedYear}</h4>
+                          <table className="history-table">
+                            <thead>
+                              <tr>
+                                <th>📁 Fichier</th>
+                                <th>📊 Entrées</th>
+                                <th>📅 Date Effective</th>
+                                <th>📅 Date Import</th>
+                                <th>📏 Taille</th>
+                                <th>⚙️ Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {importHistory.organizedByYear[selectedYear][selectedMonth].map((file, index) => (
+                                <tr key={index}>
+                                  <td className="file-name">{file.filename}</td>
+                                  <td className="entry-count">{file.entryCount?.toLocaleString()}</td>
+                                  <td className="effective-date">
+                                    {file.effectiveDate.toLocaleDateString('fr-FR')}
+                                  </td>
+                                  <td className="import-date">
+                                    {new Date(file.lastImportDate).toLocaleString('fr-FR')}
+                                  </td>
+                                  <td className="file-size">{file.avgFileSize || 'N/A'}</td>
+                                  <td className="actions-cell">
+                                    <button 
+                                      onClick={() => deleteImportFile(file.filename)}
+                                      disabled={loading}
+                                      className="btn-delete-import"
+                                      title={`Supprimer l'import "${file.filename}"`}
+                                    >
+                                      🗑️
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

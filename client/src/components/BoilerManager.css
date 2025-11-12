@@ -1407,4 +1407,217 @@ select:disabled {
   opacity: 0.7;
 }
 
-/* Cache bust 1762590975 */
+/* ======================================
+   📅 STYLES ONGLETS HISTORIQUE
+   ====================================== */
+
+.history-tabs-container {
+  margin-top: 20px;
+}
+
+/* Onglets Année (Niveau 1) */
+.year-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  border-bottom: 2px solid #e9ecef;
+  padding-bottom: 10px;
+}
+
+.year-tab {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-weight: 600;
+  font-size: 14px;
+  color: #495057;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  min-width: 80px;
+  text-align: center;
+}
+
+.year-tab:hover {
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  color: white;
+  border-color: #0056b3;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+}
+
+.year-tab.active {
+  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  color: white;
+  border-color: #0056b3;
+  box-shadow: 0 4px 12px rgba(0,123,255,0.4);
+  transform: translateY(-2px);
+}
+
+/* Onglets Mois (Niveau 2) */
+.month-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid #dee2e6;
+  padding-bottom: 15px;
+}
+
+.month-tab {
+  background: linear-gradient(135deg, #f1f3f4 0%, #e9ecef 100%);
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-weight: 500;
+  font-size: 13px;
+  color: #6c757d;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  min-width: 70px;
+  text-align: center;
+}
+
+.month-tab:hover {
+  background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+  color: white;
+  border-color: #1e7e34;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(40,167,69,0.3);
+}
+
+.month-tab.active {
+  background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+  color: white;
+  border-color: #1e7e34;
+  box-shadow: 0 3px 8px rgba(40,167,69,0.4);
+  transform: translateY(-1px);
+}
+
+/* Amélioration du tableau historique */
+.history-table-container {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  overflow: hidden;
+  margin-top: 15px;
+}
+
+.history-table-container h4 {
+  background: linear-gradient(135deg, #6f42c1 0%, #5a3a9d 100%);
+  color: white;
+  margin: 0;
+  padding: 15px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  border-bottom: 2px solid #5a3a9d;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.history-table th {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  color: #495057;
+  padding: 12px 15px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.history-table td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #f8f9fa;
+  font-size: 14px;
+  vertical-align: middle;
+}
+
+.history-table tbody tr:hover {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e3f2fd 100%);
+  transition: all 0.2s ease;
+}
+
+/* Styles spécifiques pour les cellules */
+.file-name {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: #495057;
+}
+
+.entry-count {
+  color: #007bff;
+  font-weight: 600;
+  text-align: right;
+}
+
+.effective-date, .import-date {
+  color: #6c757d;
+  font-size: 13px;
+}
+
+.file-size {
+  color: #28a745;
+  text-align: right;
+  font-weight: 500;
+}
+
+.actions-cell {
+  text-align: center;
+}
+
+.btn-delete-import {
+  background: linear-gradient(135deg, #dc3545 0%, #bd2130 100%);
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.btn-delete-import:hover {
+  background: linear-gradient(135deg, #c82333 0%, #a71e2a 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(220,53,69,0.3);
+}
+
+.btn-delete-import:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Responsive design pour les onglets */
+@media (max-width: 768px) {
+  .year-tabs, .month-tabs {
+    justify-content: center;
+  }
+  
+  .year-tab, .month-tab {
+    min-width: 60px;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+  
+  .history-table-container {
+    margin: 10px -10px;
+    border-radius: 0;
+  }
+  
+  .history-table {
+    font-size: 12px;
+  }
+  
+  .history-table th,
+  .history-table td {
+    padding: 8px 6px;
+  }
+}
+
+/* Cache bust 1762590976 */
