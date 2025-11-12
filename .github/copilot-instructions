@@ -41,20 +41,43 @@ Ce projet est une application de gestion de données de chaudière à pellets av
 ## Processus de version et déploiement
 
 ### À la fin de chaque développement d'évolution
-**OBLIGATOIRE** : Proposer un git add + git commit avec un message en français approprié.
 **INTERDIT** : Ne jamais proposer de déploiement local ou de production après une évolution.
 **INTERDIT** : Ne jamais proposer de build après une évolution (ex.: `npm run build`).
 **INTERDIT** : Ne jamais créer de documentation sans demande explicite.
 
 ### Commande de déploiement production
-**Lorsque je demande de commiter et déployer en production**, donner la commande suivante à exécuter :
+**⚠️ ATTENTION - SYNTAXE OBLIGATOIRE :**
+**Lorsque je demande de commiter et déployer en production**, utiliser **EXCLUSIVEMENT** cette syntaxe :
 ```bash
-./deploy-production.sh "Message de commit"
+./deploy-production.sh "Message de commit détaillé"
 ```
 
-Exemple :
+**❌ NE JAMAIS :**
+- Exécuter `./deploy-production.sh` sans message
+- Proposer `git add` ou `git commit` séparément
+- Lancer le serveur de développement (`./start-dev.sh`)
+
+**✅ CORRECT :**
 ```bash
 ./deploy-production.sh "feat: Ajout suppression imports avec validation"
+```
+
+**✅ AVEC MESSAGE DÉTAILLÉ :**
+```bash
+./deploy-production.sh "✨ Interface révolutionnée: sélection multi-mois cross-année + design moderne
+
+🎨 Améliorations majeures:
+- Sélection multiple indépendante des années  
+- Auto-sélection des 3 derniers mois
+- Interface compacte avec boutons toggle
+- Design élégant avec gradients
+
+🔧 Corrections techniques:
+- Format selectedMonths cross-année
+- Logique de sélection persistante
+- UX améliorée avec états visuels
+
+🚀 Résultat: Interface moderne et fonctionnelle"
 ```
 
 Format des commandes recommandé :
@@ -89,6 +112,18 @@ Exemples de messages de commit :
 ```bash
 ./deploy-production.sh "Message du commit"
 ```
+
+### ⚠️ Résolution des erreurs de déploiement
+
+**Si `./deploy-production.sh` lance le serveur de développement :**
+1. Vérifier que le script n'a pas été modifié
+2. S'assurer d'utiliser la syntaxe avec guillemets : `./deploy-production.sh "message"`
+3. Contrôler les permissions du script : `chmod +x deploy-production.sh`
+
+**Messages d'erreur courants :**
+- `❌ Serveur backend non accessible` → Script en cours d'exécution, attendre la fin
+- `Permission denied` → Exécuter `chmod +x deploy-production.sh`
+- `No such file` → Vérifier d'être dans le répertoire racine du projet
 
 ### Tests avant déploiement
 - Vérifier le build frontend (`npm run build`)

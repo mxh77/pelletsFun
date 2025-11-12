@@ -62,6 +62,18 @@ const boilerDataSchema = new mongoose.Schema({
     type: Number, // WW1 AusT Ist[°C]
     required: true
   },
+  hotWaterTargetTemp: {
+    type: Number, // WW1 Soll[°C]
+    required: false
+  },
+  hotWaterPumpStatus: {
+    type: Number, // WW1 Pumpe (0/1)
+    required: false
+  },
+  hotWaterStatus: {
+    type: Number, // WW1 Status
+    required: false
+  },
   
   // Métadonnées
   filename: {

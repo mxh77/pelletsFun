@@ -35,6 +35,14 @@ const BoilerManager = () => {
     analyseHistorique: false
   });
 
+  // États pour l'analyse de pompe ECS
+  const [pumpAnalysis, setPumpAnalysis] = useState(null);
+  const [loadingPumpAnalysis, setLoadingPumpAnalysis] = useState(false);
+
+  // États pour la visualisation de fichier
+  const [fileContent, setFileContent] = useState(null);
+  const [loadingFileContent, setLoadingFileContent] = useState(false);
+
   const API_URL = process.env.REACT_APP_API_URL || '';
 
   // Fonction utilitaire pour formater la taille des fichiers
@@ -221,6 +229,75 @@ const BoilerManager = () => {
       setLoading(false);
     }
   };
+
+  // Charger l'analyse des cycles de pompe ECS
+  const loadPumpAnalysis = async () => {
+    if (selectedMonths.length === 0) {
+      setPumpAnalysis(null);
+      return;
+    }
+
+    setLoadingPumpAnalysis(true);
+    try {
+      const response = await axios.get(`${API_URL}/api/boiler/pump-analysis`, {
+        params: {
+          selectedMonths: selectedMonths.join(',')
+        }
+      });
+
+      if (response.data.success) {
+        setPumpAnalysis(response.data.analysis);
+      } else {
+        console.error('Erreur analyse pompe:', response.data.message);
+        setPumpAnalysis(null);
+      }
+    } catch (error) {
+      console.error('Erreur chargement analyse pompe:', error);
+      setPumpAnalysis(null);
+    } finally {
+      setLoadingPumpAnalysis(false);
+    }
+  };
+
+  // Déclencher l'analyse pompe quand la sélection des mois change
+  useEffect(() => {
+    if (selectedMonths.length > 0) {
+      loadPumpAnalysis();
+    }
+  }, [selectedMonths]);
+
+  // Charger le contenu d'un fichier CSV
+  const loadFileContent = async (filename) => {
+    setLoadingFileContent(true);
+    setFileContent(null);
+    
+    try {
+      console.log('📄 Chargement fichier:', filename);
+      const response = await axios.get(`${API_URL}/api/boiler/file-content/${encodeURIComponent(filename)}`);
+      
+      if (response.data.success) {
+        setFileContent(response.data.fileData);
+        console.log('✅ Fichier chargé:', response.data.fileData.totalLines, 'lignes');
+      } else {
+        console.error('Erreur chargement fichier:', response.data.message);
+        setFileContent({ error: response.data.message });
+      }
+    } catch (error) {
+      console.error('Erreur chargement fichier:', error);
+      setFileContent({ 
+        error: error.response?.data?.message || 'Erreur lors du chargement du fichier' 
+      });
+    } finally {
+      setLoadingFileContent(false);
+    }
+  };
+
+  // Fermer le visualiseur de fichier
+  const closeFileViewer = () => {
+    setFileContent(null);
+  };
+
+
 
   // Fonctions principales
   const updateConfig = async () => {
@@ -1053,10 +1130,7 @@ const BoilerManager = () => {
                                       }}
                                     />
                                     <span className="month-checkbox-text">
-                                      <span>🗓️ {getMonthName(month)} {selectedYear}</span>
-                                      <small className="files-count">
-                                        ({files.length} fichiers)
-                                      </small>
+                                      <span>{getMonthName(month)}</span>
                                     </span>
                                   </label>
                                 );
@@ -1145,6 +1219,13 @@ const BoilerManager = () => {
                                   <td className="file-size">{file.avgFileSize || 'N/A'}</td>
                                   <td className="actions-cell">
                                     <button 
+                                      onClick={() => loadFileContent(file.filename)}
+                                      className="btn-view-file"
+                                      title={`Visualiser le contenu de "${file.filename}"`}
+                                    >
+                                      👁️
+                                    </button>
+                                    <button 
                                       onClick={() => deleteImportFile(file.filename)}
                                       disabled={false}
                                       className="btn-delete-import"
@@ -1160,6 +1241,216 @@ const BoilerManager = () => {
                         </div>
                       )}
                     </div>
+                  )}
+                </div>
+              )}
+
+              {/* 🚰 Analyse des cycles de pompe ECS */}
+              {selectedMonths.length > 0 && (
+                <div className="pump-analysis-section">
+                  <h3>🚰 Analyse Cycles Pompe ECS</h3>
+                  
+                  {loadingPumpAnalysis && (
+                    <div className="loading-pump">
+                      <span>🔄 Analyse des cycles de pompe en cours...</span>
+                    </div>
+                  )}
+
+                  {pumpAnalysis && !loadingPumpAnalysis && (
+                    <div className="pump-analysis-results">
+                      {/* Statistiques globales */}
+                      <div className="pump-stats-grid">
+                        <div className="pump-stat-card">
+                          <h4>🔄 Total Cycles</h4>
+                          <span className="stat-value">{pumpAnalysis.totalCycles}</span>
+                        </div>
+                        <div className="pump-stat-card">
+                          <h4>⏱️ Durée Totale</h4>
+                          <span className="stat-value">{pumpAnalysis.totalRuntime}min</span>
+                        </div>
+                        <div className="pump-stat-card">
+                          <h4>📊 Durée Moyenne</h4>
+                          <span className="stat-value">{pumpAnalysis.avgCycleDuration}min</span>
+                        </div>
+                        <div className="pump-stat-card">
+                          <h4>📅 Cycles/Jour</h4>
+                          <span className="stat-value">{pumpAnalysis.cyclesPerDay}</span>
+                        </div>
+                      </div>
+
+                      {/* Graphique des patterns horaires */}
+                      {Object.keys(pumpAnalysis.hourlyPattern).length > 0 && (
+                        <div className="hourly-pattern-section">
+                          <h4>📈 Répartition Horaire des Démarrages</h4>
+                          <div className="hourly-chart">
+                            {Array.from({ length: 24 }, (_, hour) => {
+                              const count = pumpAnalysis.hourlyPattern[hour] || 0;
+                              const maxCount = Math.max(...Object.values(pumpAnalysis.hourlyPattern));
+                              const height = maxCount > 0 ? (count / maxCount) * 100 : 0;
+                              
+                              return (
+                                <div key={hour} className="hour-bar-container">
+                                  <div 
+                                    className="hour-bar" 
+                                    style={{ height: `${height}%` }}
+                                    title={`${hour}h: ${count} démarrages`}
+                                  ></div>
+                                  <span className="hour-label">{hour}h</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Statistiques journalières */}
+                      {pumpAnalysis.dailyStats && pumpAnalysis.dailyStats.length > 0 && (
+                        <div className="daily-stats-section">
+                          <h4>📊 Statistiques Journalières</h4>
+                          <table className="daily-stats-table">
+                            <thead>
+                              <tr>
+                                <th>📅 Date</th>
+                                <th>🔄 Cycles</th>
+                                <th>⏱️ Runtime (min)</th>
+                                <th>🌡️ Temp. Moy. (°C)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {pumpAnalysis.dailyStats.slice(-7).map((stat, index) => (
+                                <tr key={index}>
+                                  <td>{new Date(stat.date).toLocaleDateString('fr-FR')}</td>
+                                  <td>{stat.cycles}</td>
+                                  <td>{stat.totalRuntime.toFixed(1)}</td>
+                                  <td>{stat.avgTemp}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+
+                      {/* Derniers cycles */}
+                      {pumpAnalysis.recentCycles && pumpAnalysis.recentCycles.length > 0 && (
+                        <div className="recent-cycles-section">
+                          <h4>🕒 Derniers Cycles</h4>
+                          <table className="recent-cycles-table">
+                            <thead>
+                              <tr>
+                                <th>🕒 Début</th>
+                                <th>🕕 Fin</th>
+                                <th>⏱️ Durée (min)</th>
+                                <th>🌡️ Temp. Début</th>
+                                <th>🌡️ Temp. Fin</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {pumpAnalysis.recentCycles.slice(-5).map((cycle, index) => (
+                                <tr key={index}>
+                                  <td>{new Date(cycle.startTime).toLocaleString('fr-FR')}</td>
+                                  <td>{cycle.endTime ? new Date(cycle.endTime).toLocaleString('fr-FR') : '-'}</td>
+                                  <td>{cycle.duration ? cycle.duration.toFixed(1) : '-'}</td>
+                                  <td>{cycle.startTemp ? `${cycle.startTemp.toFixed(1)}°C` : '-'}</td>
+                                  <td>{cycle.endTemp ? `${cycle.endTemp.toFixed(1)}°C` : '-'}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {!pumpAnalysis && !loadingPumpAnalysis && selectedMonths.length > 0 && (
+                    <div className="no-pump-data">
+                      <span>ℹ️ Aucune donnée de pompe disponible pour les mois sélectionnés</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 📄 Section Visualisation Fichier CSV */}
+              {fileContent && (
+                <div className="file-content-section">
+                  <div className="file-content-header">
+                    <h3>📄 Contenu du Fichier CSV</h3>
+                    <button 
+                      className="btn-close-file-content"
+                      onClick={closeFileViewer}
+                      title="Fermer"
+                    >
+                      ✕ Fermer
+                    </button>
+                  </div>
+                  
+                  {loadingFileContent && (
+                    <div className="loading-file-content">
+                      <div className="spinner-small"></div>
+                      <span>Chargement du fichier...</span>
+                    </div>
+                  )}
+                  
+                  {fileContent.error && (
+                    <div className="file-content-error">
+                      <h4>❌ Erreur</h4>
+                      <p>{fileContent.error}</p>
+                    </div>
+                  )}
+                  
+                  {!fileContent.error && !loadingFileContent && (
+                    <>
+                      <div className="file-info-inline">
+                        <div className="file-info-item">
+                          <strong>📁 Fichier:</strong> {fileContent.filename}
+                        </div>
+                        <div className="file-info-item">
+                          <strong>📏 Taille:</strong> {fileContent.sizeFormatted}
+                        </div>
+                        <div className="file-info-item">
+                          <strong>📊 Lignes:</strong> {fileContent.displayLines}/{fileContent.totalLines}
+                          {fileContent.truncated && (
+                            <span className="truncated-notice"> (tronqué)</span>
+                          )}
+                        </div>
+                        <div className="file-info-item">
+                          <strong>📅 Modifié:</strong> {new Date(fileContent.lastModified).toLocaleString('fr-FR')}
+                        </div>
+                      </div>
+                      
+                      <div className="file-content-table-container">
+                        <table className="file-content-table-inline">
+                          <thead>
+                            <tr>
+                              <th className="line-number-header">#</th>
+                              {fileContent.headers.map((header, index) => (
+                                <th key={index} 
+                                    title={fileContent.headerDescriptions && fileContent.headerDescriptions[index] 
+                                           ? fileContent.headerDescriptions[index] 
+                                           : header}
+                                    className="header-with-tooltip">
+                                  {header.length > 12 ? `${header.substring(0, 12)}...` : header}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {fileContent.content.slice(1).map((line, lineIndex) => {
+                              const columns = line.split(';');
+                              return (
+                                <tr key={lineIndex}>
+                                  <td className="line-number-cell">{lineIndex + 1}</td>
+                                  {columns.map((column, colIndex) => (
+                                    <td key={colIndex} title={column}>
+                                      {column.length > 15 ? `${column.substring(0, 15)}...` : column}
+                                    </td>
+                                  ))}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
                   )}
                 </div>
               )}
@@ -1253,6 +1544,8 @@ const BoilerManager = () => {
           </button>
         </div>
       )}
+
+
     </div>
   );
 };

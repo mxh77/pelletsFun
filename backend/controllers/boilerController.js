@@ -163,6 +163,9 @@ exports.importUploadedCSV = async (req, res) => {
               status: parseInt(data['PE1 Status'] || data['PE1 Status ']) || 0,
               hotWaterInTemp: parseFloat((data['WW1 EinT Ist[°C]'] || data['WW1 EinT Ist[°C] '] || data['WW1 EinT Ist[□C]'])?.replace(',', '.')) || 0,
               hotWaterOutTemp: parseFloat((data['WW1 AusT Ist[°C]'] || data['WW1 AusT Ist[°C] '] || data['WW1 AusT Ist[□C]'])?.replace(',', '.')) || 0,
+              hotWaterTargetTemp: parseFloat((data['WW1 Soll[°C]'] || data['WW1 Soll[°C] '] || data['WW1 Soll[□C]'])?.replace(',', '.')) || 0,
+              hotWaterPumpStatus: parseInt(data['WW1 Pumpe'] || data['WW1 Pumpe ']) || 0,
+              hotWaterStatus: parseInt(data['WW1 Status'] || data['WW1 Status ']) || 0,
               filename: originalFilename,
               fileSize: req.file.size // Taille du fichier en octets
             };
@@ -313,6 +316,9 @@ exports.importBoilerCSV = async (req, res) => {
               status: parseInt(data['PE1 Status']) || 0,
               hotWaterInTemp: parseFloat((data['WW1 EinT Ist[°C]'] || data['WW1 EinT Ist[□C]'])?.replace(',', '.')) || 0,
               hotWaterOutTemp: parseFloat((data['WW1 AusT Ist[°C]'] || data['WW1 AusT Ist[□C]'])?.replace(',', '.')) || 0,
+              hotWaterTargetTemp: parseFloat((data['WW1 Soll[°C]'] || data['WW1 Soll[□C]'])?.replace(',', '.')) || 0,
+              hotWaterPumpStatus: parseInt(data['WW1 Pumpe']) || 0,
+              hotWaterStatus: parseInt(data['WW1 Status']) || 0,
               filename: filename,
               fileSize: fileSize // Taille du fichier en octets
             };
@@ -1599,3 +1605,497 @@ async function processGmailImportAsync(taskId, params) {
     taskManager.failTask(taskId, error);
   }
 }
+
+// Analyse des cycles de pompe eau chaude sanitaire
+exports.getPumpAnalysis = async (req, res) => {
+  try {
+    console.log('🔍 Analyse des cycles de pompe ECS demandée');
+    
+    const { selectedMonths } = req.query;
+    
+    if (!selectedMonths) {
+      return res.status(400).json({
+        success: false,
+        message: 'Paramètre selectedMonths requis'
+      });
+    }
+
+    const monthsArray = selectedMonths.split(',');
+    const matchConditions = [];
+
+    // Construire les conditions de filtrage par mois
+    monthsArray.forEach(monthStr => {
+      const [year, month] = monthStr.split('-');
+      if (year && month) {
+        const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
+        const endDate = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59, 999);
+        
+        matchConditions.push({
+          date: { $gte: startDate, $lte: endDate }
+        });
+      }
+    });
+
+    if (matchConditions.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Aucune période valide trouvée'
+      });
+    }
+
+    console.log(`📊 Analyse des cycles pompe pour ${matchConditions.length} périodes`);
+
+    // Agrégation MongoDB pour analyser les cycles de pompe
+    const pumpAnalysis = await BoilerData.aggregate([
+      {
+        $match: {
+          $or: matchConditions
+        }
+      },
+      {
+        $sort: { date: 1, time: 1 }
+      },
+      {
+        $project: {
+          date: 1,
+          time: 1,
+          hotWaterInTemp: 1,
+          hotWaterOutTemp: 1,
+          hotWaterTargetTemp: 1,
+          hotWaterPumpStatus: 1,
+          hotWaterStatus: 1,
+          pumpStatus: { $ifNull: ["$hotWaterPumpStatus", 0] },
+          hotWaterTemp: { $avg: ["$hotWaterInTemp", "$hotWaterOutTemp"] },
+          datetime: {
+            $dateFromString: {
+              dateString: {
+                $concat: [
+                  { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
+                  " ",
+                  "$time"
+                ]
+              },
+              format: "%Y-%m-%d %H:%M:%S"
+            }
+          }
+        }
+      }
+    ]);
+
+    // Analyser les cycles de pompe
+    let cycles = [];
+    let currentCycle = null;
+    let totalRuntime = 0;
+    let totalStops = 0;
+    let dailyStats = {};
+
+    for (let i = 0; i < pumpAnalysis.length; i++) {
+      const entry = pumpAnalysis[i];
+      const pumpOn = entry.pumpStatus === 1;
+      const dateKey = entry.date.toISOString().split('T')[0];
+
+      // Initialiser les stats journalières
+      if (!dailyStats[dateKey]) {
+        dailyStats[dateKey] = {
+          date: dateKey,
+          cycles: 0,
+          totalRuntime: 0,
+          avgTemp: 0,
+          tempCount: 0
+        };
+      }
+
+      // Ajouter température moyenne
+      if (entry.hotWaterTemp && entry.hotWaterTemp > 0) {
+        dailyStats[dateKey].avgTemp += entry.hotWaterTemp;
+        dailyStats[dateKey].tempCount++;
+      }
+
+      if (pumpOn && !currentCycle) {
+        // Début d'un nouveau cycle
+        currentCycle = {
+          startTime: entry.datetime,
+          startTemp: entry.hotWaterTemp,
+          duration: 0
+        };
+      } else if (!pumpOn && currentCycle) {
+        // Fin du cycle
+        currentCycle.endTime = entry.datetime;
+        currentCycle.endTemp = entry.hotWaterTemp;
+        currentCycle.duration = (entry.datetime - currentCycle.startTime) / (1000 * 60); // en minutes
+        
+        cycles.push(currentCycle);
+        totalRuntime += currentCycle.duration;
+        totalStops++;
+        dailyStats[dateKey].cycles++;
+        dailyStats[dateKey].totalRuntime += currentCycle.duration;
+        
+        currentCycle = null;
+      }
+    }
+
+    // Finaliser les stats journalières
+    Object.keys(dailyStats).forEach(date => {
+      const stats = dailyStats[date];
+      if (stats.tempCount > 0) {
+        stats.avgTemp = (stats.avgTemp / stats.tempCount).toFixed(1);
+      }
+    });
+
+    // Calculer les statistiques globales
+    const avgCycleDuration = cycles.length > 0 ? (totalRuntime / cycles.length).toFixed(1) : 0;
+    const cyclesPerDay = cycles.length > 0 ? (cycles.length / Object.keys(dailyStats).length).toFixed(1) : 0;
+
+    // Analyser les patterns horaires
+    const hourlyPattern = {};
+    cycles.forEach(cycle => {
+      const hour = cycle.startTime.getHours();
+      if (!hourlyPattern[hour]) {
+        hourlyPattern[hour] = 0;
+      }
+      hourlyPattern[hour]++;
+    });
+
+    const result = {
+      success: true,
+      analysis: {
+        totalCycles: cycles.length,
+        totalRuntime: parseFloat(totalRuntime.toFixed(1)),
+        avgCycleDuration: parseFloat(avgCycleDuration),
+        cyclesPerDay: parseFloat(cyclesPerDay),
+        dailyStats: Object.values(dailyStats),
+        hourlyPattern: hourlyPattern,
+        recentCycles: cycles.slice(-10) // 10 derniers cycles
+      }
+    };
+
+    console.log(`✅ Analyse cycles pompe terminée: ${cycles.length} cycles, ${totalRuntime.toFixed(1)}min runtime`);
+    res.json(result);
+
+  } catch (error) {
+    console.error('❌ Erreur analyse cycles pompe:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de l\'analyse des cycles de pompe',
+      error: error.message
+    });
+  }
+};
+
+// Récupérer le contenu d'un fichier CSV
+exports.getFileContent = async (req, res) => {
+  try {
+    const { filename } = req.params;
+    const fs = require('fs').promises;
+    const path = require('path');
+    
+    console.log(`📄 Demande visualisation fichier: ${filename}`);
+    
+    // Fonction de traduction des en-têtes allemands vers français avec descriptions
+    const translateHeader = (germanHeader) => {
+      const translations = {
+        // En-têtes de base
+        'Datum': 'Date',
+        'Zeit': 'Heure',
+        
+        // Températures extérieures (versions °C et �C)
+        'AT [°C]': 'Température Extérieure [°C]',
+        'AT [�C]': 'Température Extérieure [°C]',
+        'ATakt [°C]': 'Temp. Ext. Active [°C]',
+        'ATakt [�C]': 'Temp. Ext. Active [°C]',
+        
+        // Circuit chauffage (HK1) - versions °C et �C
+        'HK1 VL Ist[°C]': 'Départ Réel [°C]',
+        'HK1 VL Ist[�C]': 'Départ Réel [°C]',
+        'HK1 VL Soll[°C]': 'Départ Consigne [°C]',
+        'HK1 VL Soll[�C]': 'Départ Consigne [°C]',
+        'HK1 RT Ist[°C]': 'Ambiance Réelle [°C]',
+        'HK1 RT Ist[�C]': 'Ambiance Réelle [°C]',
+        'HK1 RT Soll[°C]': 'Ambiance Consigne [°C]',
+        'HK1 RT Soll[�C]': 'Ambiance Consigne [°C]',
+        'HK1 Pumpe': 'Pompe Chauff.',
+        'HK1 Mischer': 'Mélangeur',
+        'HK1 Fernb[°C]': 'Chauff. Télécommande [°C]',
+        'HK1 Status': 'Statut Chauffage',
+        
+        // Eau chaude sanitaire (WW1) - versions °C et �C
+        'WW1 EinT Ist[°C]': 'ECS Entrée [°C]',
+        'WW1 EinT Ist[�C]': 'ECS Entrée [°C]',
+        'WW1 AusT Ist[°C]': 'ECS Sortie [°C]',
+        'WW1 AusT Ist[�C]': 'ECS Sortie [°C]',
+        'WW1 Soll[°C]': 'ECS Consigne [°C]',
+        'WW1 Soll[�C]': 'ECS Consigne [°C]',
+        'WW1 Pumpe': 'Pompe ECS',
+        'WW1 Status': 'Statut ECS',
+        
+        // Capteur externe
+        'Sensor ext [°C]': 'Capteur Ext. [°C]',
+        
+        // Chaudière pellets (PE1) - versions °C et �C
+        'PE1 KT[°C]': 'Temp. Chaudière [°C]',
+        'PE1 KT[�C]': 'Temp. Chaudière [°C]',
+        'PE1 KT_SOLL[°C]': 'Chaudière Consigne [°C]',
+        'PE1 KT_SOLL[�C]': 'Chaudière Consigne [°C]',
+        'PE1 UW Freigabe[°C]': 'Chaudière Dégagement [°C]',
+        'PE1 Modulation[%]': 'Modulation [%]',
+        'PE1 FRT Ist[°C]': 'Temp. Fumées Réelle [°C]',
+        'PE1 FRT Ist[�C]': 'Temp. Fumées Réelle [°C]',
+        'PE1 FRT Soll[°C]': 'Temp. Fumées Consigne [°C]',
+        'PE1 FRT Soll[�C]': 'Temp. Fumées Consigne [°C]',
+        'PE1 FRT End[°C]': 'Foyer Temp. Finale [°C]',
+        'PE1 Einschublaufzeit[zs]': 'Temps Alimentation [zs]',
+        'PE1 Pausenzeit[zs]': 'Temps Pause [zs]',
+        'PE1 Luefterdrehzahl[%]': 'Vitesse Ventilateur [%]',
+        'PE1 Saugzugdrehzahl[%]': 'Vitesse Aspiration [%]',
+        'PE1 Unterdruck Ist[EH]': 'Dépression Réelle [EH]',
+        'PE1 Unterdruck Soll[EH]': 'Dépression Consigne [EH]',
+        'PE1 Fuellstand[kg]': 'Niveau Pellets [kg]',
+        'PE1 Fuellstand ZWB[kg]': 'Niveau Réserve [kg]',
+        'PE1 Status': 'Statut Chaudière',
+        'PE1 Statusbit': 'Bits Statut',
+        
+        // Moteurs et composants
+        'PE1 Motor ES': 'Moteur Alimentation',
+        'PE1 Motor RA': 'Moteur Cendres',
+        'PE1 Motor RES1': 'Moteur Réserve1',
+        'PE1 Motor TURBINE': 'Moteur Turbine',
+        'PE1 Motor ZUEND': 'Moteur Allumage',
+        'PE1 Motor UW[%]': 'Moteur Circulation [%]',
+        'PE1 Motor AV': 'Moteur AV',
+        'PE1 Motor RES2': 'Moteur Réserve2',
+        'PE1 Motor MA': 'Moteur MA',
+        'PE1 Motor RM': 'Moteur RM',
+        'PE1 Motor SM': 'Moteur SM',
+        
+        // Températures réserves et autres
+        'PE1 Res1 Temp.[°C]': 'Temp. Réserve1 [°C]',
+        'PE1 Res2 Temp.[°C]': 'Temp. Réserve2 [°C]',
+        'PE1 CAP RA': 'Capacité RA',
+        'PE1 CAP ZB': 'Capacité ZB',
+        'PE1 AK': 'AK',
+        'PE1 Saug-Int[min]': 'Intervalle Aspiration [min]',
+        'PE1 DigIn1': 'Entrée Numérique 1',
+        'PE1 DigIn2': 'Entrée Numérique 2',
+        'PE1 CntDig1': 'Compteur Numérique 1',
+        'PE1 Ashfill[kg]': 'Remplissage Cendres [kg]',
+        'PE1 Runtime[h]': 'Temps Fonctionnement [h]',
+        
+        // Erreurs
+        'Fehler1': 'Erreur 1',
+        'Fehler2': 'Erreur 2',
+        'Fehler3': 'Erreur 3',
+        
+        // Champ vide ou inconnu
+        'PE1_BR1': 'Brûleur 1'
+      };
+      
+      // Retourner la traduction ou l'original si pas de traduction
+      return translations[germanHeader.trim()] || germanHeader;
+    };
+
+    // Descriptions détaillées pour les info-bulles
+    const getHeaderDescription = (germanHeader) => {
+      const descriptions = {
+        // Horodatage
+        'Datum': 'Date d\'enregistrement des données (format DD.MM.YYYY)',
+        'Zeit': 'Heure d\'enregistrement des données (format HH:MM:SS)',
+        
+        // Température extérieure
+        'AT [°C]': 'Température extérieure mesurée par la sonde météo. Utilisée pour la régulation automatique de la chaudière selon la courbe de chauffe.',
+        'AT [�C]': 'Température extérieure mesurée par la sonde météo. Utilisée pour la régulation automatique de la chaudière selon la courbe de chauffe.',
+        
+        // Circuit chauffage départ
+        'HK1 VL Ist[°C]': 'Température réelle du circuit de départ chauffage. C\'est la température de l\'eau qui part vers les radiateurs/plancher chauffant.',
+        'HK1 VL Ist[�C]': 'Température réelle du circuit de départ chauffage. C\'est la température de l\'eau qui part vers les radiateurs/plancher chauffant.',
+        'HK1 VL Soll[°C]': 'Température de consigne du circuit de départ chauffage. Calculée automatiquement selon la courbe de chauffe et la température extérieure.',
+        'HK1 VL Soll[�C]': 'Température de consigne du circuit de départ chauffage. Calculée automatiquement selon la courbe de chauffe et la température extérieure.',
+        
+        // Circuit chauffage retour/ambiance
+        'HK1 RT Ist[°C]': 'Température réelle du circuit de retour chauffage. C\'est la température de l\'eau qui revient des radiateurs/plancher chauffant.',
+        'HK1 RT Ist[�C]': 'Température réelle du circuit de retour chauffage. C\'est la température de l\'eau qui revient des radiateurs/plancher chauffant.',
+        'HK1 RT Soll[°C]': 'Température de consigne du circuit de retour chauffage. Permet d\'optimiser le rendement et d\'éviter la condensation.',
+        'HK1 RT Soll[�C]': 'Température de consigne du circuit de retour chauffage. Permet d\'optimiser le rendement et d\'éviter la condensation.',
+        
+        // États pompe/mélangeur
+        'HK1 Pumpe': 'État de la pompe de circulation du chauffage (0 = arrêt, 1 = marche). Assure la circulation d\'eau dans le circuit de chauffage.',
+        'HK1 Mischer': 'Position de la vanne mélangeuse du chauffage (0-100%). Mélange l\'eau chaude de la chaudière avec l\'eau de retour pour ajuster la température.',
+        
+        // Eau chaude sanitaire
+        'WW1 EinT Ist[°C]': 'Température d\'entrée réelle de l\'eau chaude sanitaire dans l\'échangeur. Eau froide qui arrive du réseau.',
+        'WW1 EinT Ist[�C]': 'Température d\'entrée réelle de l\'eau chaude sanitaire dans l\'échangeur. Eau froide qui arrive du réseau.',
+        'WW1 AusT Ist[°C]': 'Température de sortie réelle de l\'eau chaude sanitaire de l\'échangeur. Eau chaude produite pour les robinets.',
+        'WW1 AusT Ist[�C]': 'Température de sortie réelle de l\'eau chaude sanitaire de l\'échangeur. Eau chaude produite pour les robinets.',
+        'WW1 Soll[°C]': 'Température de consigne pour l\'eau chaude sanitaire. Réglable selon vos besoins de confort (généralement 45-60°C).',
+        'WW1 Soll[�C]': 'Température de consigne pour l\'eau chaude sanitaire. Réglable selon vos besoins de confort (généralement 45-60°C).',
+        'WW1 Pumpe': 'État de la pompe de circulation ECS (0 = arrêt, 1 = marche). Active lors des puisages ou maintien en température.',
+        
+        // Chaudière essentiel
+        'PE1 Modulation[%]': 'Puissance de modulation du brûleur (0-100%). Indique l\'intensité de combustion des pellets pour s\'adapter aux besoins thermiques.',
+        'PE1 KT[°C]': 'Température de la chaudière. Température de l\'eau dans le corps de chauffe, doit rester dans les limites de sécurité (60-85°C).',
+        'PE1 KT[�C]': 'Température de la chaudière. Température de l\'eau dans le corps de chauffe, doit rester dans les limites de sécurité (60-85°C).',
+        
+        // Température fumées
+        'PE1 FRT Ist[°C]': 'Température réelle des fumées dans le foyer. Indicateur clé du rendement : trop haute = perte d\'énergie, trop basse = condensation.',
+        'PE1 FRT Ist[�C]': 'Température réelle des fumées dans le foyer. Indicateur clé du rendement : trop haute = perte d\'énergie, trop basse = condensation.',
+        'PE1 FRT Soll[°C]': 'Température de consigne des fumées. Optimisée automatiquement pour un rendement maximal et une combustion propre.',
+        'PE1 FRT Soll[�C]': 'Température de consigne des fumées. Optimisée automatiquement pour un rendement maximal et une combustion propre.',
+        
+        // Niveau et fonctionnement
+        'PE1 Fuellstand[kg]': 'Niveau de pellets dans le réservoir en kilogrammes. Permet de surveiller l\'autonomie restante et planifier les livraisons.',
+        'PE1 Runtime[h]': 'Nombre d\'heures de fonctionnement cumulées de la chaudière. Utile pour la maintenance préventive et le suivi des consommations.',
+        
+        // Erreurs
+        'Fehler1': 'Code d\'erreur primaire (0 = aucune erreur). Consulter le manuel pour la signification des codes d\'erreur spécifiques.',
+        'Fehler2': 'Code d\'erreur secondaire (0 = aucune erreur). Erreurs moins critiques ou informations de diagnostic complémentaires.',
+        'Fehler3': 'Code d\'erreur tertiaire (0 = aucune erreur). Erreurs mineures ou alertes préventives de maintenance.'
+      };
+      
+      return descriptions[germanHeader.trim()] || 'Description non disponible pour cette colonne.';
+    };
+    
+    // Chercher dans les différents répertoires possibles
+    const possiblePaths = [
+      path.join(__dirname, '../auto-downloads', filename),
+      path.join(__dirname, '../uploads', filename),
+      path.join(__dirname, '../../', filename), // Racine du projet
+      path.join(__dirname, '../../auto-downloads', filename),
+      path.join(__dirname, '../../backend/auto-downloads', filename),
+      path.join(__dirname, '../../client/public', filename)
+    ];
+    
+    console.log(`🔍 Recherche fichier "${filename}" dans les répertoires:`, possiblePaths.map(p => path.relative(__dirname, p)));
+    
+    let filePath = null;
+    let fileExists = false;
+    
+    // Tester chaque chemin possible
+    for (const testPath of possiblePaths) {
+      try {
+        await fs.access(testPath);
+        filePath = testPath;
+        fileExists = true;
+        break;
+      } catch (error) {
+        // Fichier non trouvé à ce chemin, continuer
+        continue;
+      }
+    }
+    
+    if (!fileExists) {
+      console.log(`❌ Fichier non trouvé: ${filename}`);
+      return res.status(404).json({
+        success: false,
+        message: 'Fichier non trouvé'
+      });
+    }
+    
+    // Lire le contenu du fichier
+    const content = await fs.readFile(filePath, 'utf-8');
+    const lines = content.split('\n');
+    
+    // Limiter à 500 lignes pour éviter de surcharger l'interface
+    const maxLines = 500;
+    const truncated = lines.length > maxLines;
+    const displayLines = lines.slice(0, maxLines);
+    
+    // Obtenir des infos sur le fichier
+    const stats = await fs.stat(filePath);
+    
+    console.log(`✅ Fichier lu: ${filename}, ${lines.length} lignes, ${(stats.size / 1024).toFixed(2)} KB`);
+    
+    // Colonnes essentielles à conserver (avec variantes d'encodage)
+    const essentialColumns = [
+      // Horodatage
+      'Datum', 'Zeit',
+      
+      // Température extérieure (ATakt plus précis, mais on garde AT comme demandé)
+      'AT [°C]', 'AT [�C]',
+      
+      // Circuit chauffage départ
+      'HK1 VL Ist[°C]', 'HK1 VL Ist[�C]',
+      'HK1 VL Soll[°C]', 'HK1 VL Soll[�C]',
+      
+      // Circuit chauffage retour/ambiance
+      'HK1 RT Ist[°C]', 'HK1 RT Ist[�C]',
+      'HK1 RT Soll[°C]', 'HK1 RT Soll[�C]',
+      
+      // États pompe/mélangeur
+      'HK1 Pumpe', 'HK1 Mischer',
+      
+      // Eau chaude sanitaire
+      'WW1 EinT Ist[°C]', 'WW1 EinT Ist[�C]',
+      'WW1 AusT Ist[°C]', 'WW1 AusT Ist[�C]',
+      'WW1 Soll[°C]', 'WW1 Soll[�C]',
+      'WW1 Pumpe',
+      
+      // Chaudière essentiel
+      'PE1 Modulation[%]',
+      'PE1 KT[°C]', 'PE1 KT[�C]',
+      
+      // Température fumées
+      'PE1 FRT Ist[°C]', 'PE1 FRT Ist[�C]',
+      'PE1 FRT Soll[°C]', 'PE1 FRT Soll[�C]',
+      
+      // Niveau et fonctionnement
+      'PE1 Fuellstand[kg]',
+      'PE1 Runtime[h]',
+      
+      // Erreurs
+      'Fehler1', 'Fehler2', 'Fehler3'
+    ];
+    
+    // Traiter les en-têtes pour les traduire et filtrer
+    const originalHeaders = displayLines[0] ? displayLines[0].split(';') : [];
+    const translatedHeaders = originalHeaders.map(header => translateHeader(header));
+    
+    // Identifier les indices des colonnes à conserver
+    const visibleColumnIndices = [];
+    originalHeaders.forEach((header, index) => {
+      if (essentialColumns.includes(header.trim())) {
+        visibleColumnIndices.push(index);
+      }
+    });
+    
+    // Filtrer les en-têtes (garder seulement les essentielles)
+    const visibleHeaders = translatedHeaders.filter((_, index) => visibleColumnIndices.includes(index));
+    const visibleOriginalHeaders = originalHeaders.filter((_, index) => visibleColumnIndices.includes(index));
+    
+    // Créer les descriptions pour les colonnes visibles
+    const headerDescriptions = visibleOriginalHeaders.map(header => getHeaderDescription(header));
+    
+    // Filtrer les données (garder seulement les colonnes essentielles)
+    const filteredContent = displayLines.map(line => {
+      const cells = line.split(';');
+      return cells.filter((_, index) => visibleColumnIndices.includes(index)).join(';');
+    });
+    
+    console.log(`🔄 Colonnes essentielles: ${originalHeaders.length} → ${visibleHeaders.length} colonnes (${originalHeaders.length - visibleHeaders.length} masquées)`);
+    
+    res.json({
+      success: true,
+      fileData: {
+        filename: filename,
+        totalLines: lines.length,
+        displayLines: displayLines.length,
+        truncated: truncated,
+        size: stats.size,
+        sizeFormatted: `${(stats.size / 1024).toFixed(2)} KB`,
+        lastModified: stats.mtime,
+        content: filteredContent,
+        headers: visibleHeaders,
+        originalHeaders: visibleOriginalHeaders, // En-têtes originaux visibles
+        headerDescriptions: headerDescriptions, // Descriptions pour les info-bulles
+        visibleColumns: visibleColumnIndices.length, // Nombre de colonnes affichées
+        totalColumns: originalHeaders.length // Nombre total de colonnes
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur lecture fichier:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la lecture du fichier',
+      error: error.message
+    });
+  }
+};

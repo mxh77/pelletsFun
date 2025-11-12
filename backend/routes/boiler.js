@@ -50,4 +50,10 @@ router.get('/tasks/:taskId/logs', boilerController.getTaskLogs);
 router.get('/import-history', boilerController.getImportHistory);
 router.delete('/import/:filename', boilerController.deleteImport);
 
+// Analyse des cycles de pompe ECS
+router.get('/pump-analysis', boilerController.getPumpAnalysis);
+
+// Visualisation du contenu d'un fichier CSV
+router.get('/file-content/:filename', boilerController.getFileContent);
+
 module.exports = router;

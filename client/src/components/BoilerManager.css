@@ -786,32 +786,7 @@
   width: 80px;
 }
 
-.btn-delete-import {
-  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
-  min-width: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-delete-import:hover {
-  background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
-}
-
-.btn-delete-import:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 6px rgba(220, 53, 69, 0.3);
-}
+/* Ancien style remplacé par les nouvelles définitions homogènes plus bas */
 
 .btn-delete-import:disabled {
   background: #6c757d;
@@ -1106,11 +1081,7 @@
     width: 50px;
   }
   
-  .btn-delete-import {
-    padding: 4px 6px;
-    font-size: 0.8rem;
-    min-width: 32px;
-  }
+  /* Styles des boutons maintenant centralisés plus bas */
   
   .history-table {
     font-size: 0.75rem;
@@ -1463,6 +1434,7 @@ select:disabled {
   flex-wrap: wrap;
   border-bottom: 1px solid #dee2e6;
   padding-bottom: 15px;
+  width: 100%;
 }
 
 .month-tab {
@@ -1604,46 +1576,46 @@ select:disabled {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
-  margin-bottom: 20px;
+  padding: 6px 12px;
+  margin-bottom: 8px;
   background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-  border: 2px solid #e9ecef;
-  border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.03);
 }
 
 .selection-title {
-  font-weight: 700;
-  font-size: 16px;
+  font-weight: 600;
+  font-size: 13px;
   color: #495057;
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
 }
 
 .selection-title::before {
   content: '📅';
-  font-size: 18px;
+  font-size: 14px;
 }
 
 .selection-actions {
   display: flex;
-  gap: 8px;
+  gap: 6px;
 }
 
 .btn-select-all, .btn-clear-all {
-  padding: 8px 16px;
-  border: 2px solid #dee2e6;
-  border-radius: 20px;
-  font-size: 13px;
+  padding: 3px 10px;
+  border: 1px solid #dee2e6;
+  border-radius: 12px;
+  font-size: 10px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
   background: white;
   color: #6c757d;
   position: relative;
-  min-width: 80px;
+  min-width: 50px;
 }
 
 .btn-select-all {
@@ -1671,32 +1643,33 @@ select:disabled {
 }
 
 .month-checkboxes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding: 4px 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 6px;
+  padding: 0;
+  width: 100%;
 }
 
 .month-checkbox-label {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
+  gap: 4px;
+  padding: 8px 12px;
   background: white;
-  border: 2px solid #dee2e6;
-  border-radius: 25px;
+  border: 1px solid #dee2e6;
+  border-radius: 15px;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-size: 14px;
-  min-width: 160px;
+  font-size: 12px;
+  min-width: 75px;
   position: relative;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
 
 .month-checkbox-label:hover {
   border-color: #FF6B35;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.15);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(255, 107, 53, 0.1);
 }
 
 .month-checkbox-label input[type="checkbox"] {
@@ -1714,7 +1687,7 @@ select:disabled {
   background: linear-gradient(135deg, #FF6B35 0%, #F7931E 100%);
   border-color: #FF6B35;
   color: white;
-  box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);
+  box-shadow: 0 2px 8px rgba(255, 107, 53, 0.2);
 }
 
 .month-checkbox-label:has(input:checked) .month-checkbox-text span:first-child {
@@ -1724,8 +1697,8 @@ select:disabled {
 /* Effet toggle - indicateur visuel */
 .month-checkbox-label::after {
   content: '';
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: #dee2e6;
   transition: all 0.2s ease;
@@ -1734,25 +1707,25 @@ select:disabled {
 
 .month-checkbox-label:has(input:checked)::after {
   background: white;
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.3);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.3);
 }
 
 .month-checkbox-text {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  justify-content: center;
   flex: 1;
-  text-align: left;
+  text-align: center;
 }
 
 .month-checkbox-text span:first-child {
   font-weight: 600;
-  font-size: 14px;
-  line-height: 1.2;
+  font-size: 12px;
+  line-height: 1;
 }
 
 .files-count {
-  font-size: 11px;
+  font-size: 8px;
   opacity: 0.8;
   font-weight: 500;
   line-height: 1;
@@ -1960,8 +1933,9 @@ select:disabled {
   /* Responsive pour la sélection de mois */
   .month-selection-header {
     flex-direction: column;
-    gap: 10px;
+    gap: 6px;
     text-align: center;
+    padding: 6px 12px;
   }
   
   .selection-actions {
@@ -1969,13 +1943,531 @@ select:disabled {
   }
   
   .month-checkboxes {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
+    gap: 4px;
   }
   
   .month-checkbox-label {
-    font-size: 12px;
+    font-size: 11px;
     padding: 6px 8px;
+    min-width: 65px;
   }
+}
+
+/* ======================================
+   🚰 ANALYSE CYCLES POMPE ECS
+   ====================================== */
+
+.pump-analysis-section {
+  margin-top: 25px;
+  padding: 20px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.pump-analysis-section h3 {
+  color: #2c3e50;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loading-pump {
+  text-align: center;
+  padding: 20px;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.pump-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+  margin-bottom: 25px;
+}
+
+.pump-stat-card {
+  background: white;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  transition: transform 0.2s ease;
+}
+
+.pump-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+}
+
+.pump-stat-card h4 {
+  font-size: 12px;
+  color: #6c757d;
+  margin: 0 0 8px 0;
+  font-weight: 600;
+}
+
+.pump-stat-card .stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #2c3e50;
+  display: block;
+}
+
+.hourly-pattern-section {
+  margin-bottom: 25px;
+}
+
+.hourly-pattern-section h4 {
+  color: #2c3e50;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 15px;
+}
+
+.hourly-chart {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  height: 120px;
+  padding: 10px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+  gap: 2px;
+}
+
+.hour-bar-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  flex: 1;
+}
+
+.hour-bar {
+  background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%);
+  width: 100%;
+  max-width: 12px;
+  min-height: 2px;
+  border-radius: 2px;
+  margin-bottom: 5px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.hour-bar:hover {
+  background: linear-gradient(135deg, #138496 0%, #1e7e34 100%);
+  transform: scaleY(1.1);
+}
+
+.hour-label {
+  font-size: 9px;
+  color: #6c757d;
+  font-weight: 500;
+  writing-mode: horizontal-tb;
+}
+
+.daily-stats-section,
+.recent-cycles-section {
+  margin-bottom: 20px;
+}
+
+.daily-stats-section h4,
+.recent-cycles-section h4 {
+  color: #2c3e50;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 15px;
+}
+
+.daily-stats-table,
+.recent-cycles-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.daily-stats-table th,
+.daily-stats-table td,
+.recent-cycles-table th,
+.recent-cycles-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid #dee2e6;
+  font-size: 13px;
+}
+
+.daily-stats-table th,
+.recent-cycles-table th {
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+  font-size: 12px;
+}
+
+.daily-stats-table tbody tr:hover,
+.recent-cycles-table tbody tr:hover {
+  background: #f8f9fa;
+}
+
+.no-pump-data {
+  text-align: center;
+  padding: 20px;
+  color: #6c757d;
+  font-style: italic;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px dashed #dee2e6;
+}
+
+/* Responsive pour analyse pompe */
+@media (max-width: 768px) {
+  .pump-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  
+  .pump-stat-card {
+    padding: 12px;
+  }
+  
+  .pump-stat-card .stat-value {
+    font-size: 16px;
+  }
+  
+  .hourly-chart {
+    height: 80px;
+    gap: 1px;
+  }
+  
+  .hour-bar {
+    max-width: 8px;
+  }
+  
+  .hour-label {
+    font-size: 8px;
+  }
+  
+  .daily-stats-table th,
+  .daily-stats-table td,
+  .recent-cycles-table th,
+  .recent-cycles-table td {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+}
+
+/* ======================================
+   📄 VISUALISATION FICHIER CSV - SECTION INTÉGRÉE
+   ====================================== */
+
+.file-content-section {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  margin: 20px 0;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.file-content-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-bottom: 1px solid #dee2e6;
+}
+
+.file-content-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #495057;
+}
+
+.btn-close-file-content {
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-close-file-content:hover {
+  background: #c82333;
+  transform: translateY(-1px);
+}
+
+.file-info-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  padding: 12px 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  font-size: 12px;
+}
+
+.file-info-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.file-info-item strong {
+  color: #495057;
+}
+
+.truncated-notice {
+  color: #fd7e14;
+  font-weight: 600;
+}
+
+.file-content-table-container {
+  overflow: auto;
+  max-height: 500px;
+  padding: 0;
+}
+
+.file-content-table-inline {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+  font-family: 'Courier New', monospace;
+}
+
+.loading-file-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  gap: 10px;
+}
+
+.spinner-small {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #f3f3f3;
+  border-top: 2px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.file-content-error {
+  padding: 20px;
+  text-align: center;
+  color: #dc3545;
+}
+
+.file-content-table-inline th,
+.file-content-table-inline td {
+  border: 1px solid #dee2e6;
+  padding: 3px 6px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.file-content-table-inline th {
+  background: #e9ecef;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  font-size: 9px;
+}
+
+.file-content-table-inline .line-number-header {
+  width: 50px;
+  min-width: 50px;
+  max-width: 50px;
+}
+
+.file-content-table-inline .line-number-cell {
+  background: #f8f9fa;
+  text-align: center;
+  font-weight: bold;
+  color: #6c757d;
+  width: 50px;
+  min-width: 50px;
+  max-width: 50px;
+}
+
+.file-content-table-inline tr:nth-child(even) {
+  background: #f8f9fa;
+}
+
+.file-content-table-inline tr:hover {
+  background: #e3f2fd;
+}
+
+
+
+/* Boutons actions fichiers - taille homogène FORCÉE */
+.history-table .actions-cell .btn-view-file,
+.history-table .actions-cell .btn-delete-import {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  border: none !important;
+  border-radius: 6px !important;
+  margin: 0 3px !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  font-size: 14px !important;
+  box-shadow: none !important;
+}
+
+.history-table .actions-cell .btn-view-file {
+  background: #17a2b8 !important;
+  color: white !important;
+}
+
+.history-table .actions-cell .btn-view-file:hover {
+  background: #138496 !important;
+  transform: translateY(-1px) !important;
+}
+
+.history-table .actions-cell .btn-delete-import {
+  background: #dc3545 !important;
+  color: white !important;
+}
+
+.history-table .actions-cell .btn-delete-import:hover {
+  background: #c82333 !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Conteneur des actions pour assurer l'alignement */
+.history-table .actions-cell {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  padding: 8px !important;
+}
+
+/* Responsive pour la visualisation de fichier */
+@media (max-width: 768px) {
+  .file-info-inline {
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 15px;
+  }
+  
+  .file-content-table-inline {
+    font-size: 9px;
+  }
+  
+  .file-content-table-inline th,
+  .file-content-table-inline td {
+    padding: 2px 4px;
+    max-width: 80px;
+  }
+  
+  .file-content-table-container {
+    max-height: 300px;
+  }
+  
+  /* Maintenir la taille des boutons même sur mobile */
+  .history-table .actions-cell .btn-view-file,
+  .history-table .actions-cell .btn-delete-import {
+    width: 28px !important;
+    height: 28px !important;
+    min-width: 28px !important;
+    max-width: 28px !important;
+    min-height: 28px !important;
+    max-height: 28px !important;
+    font-size: 12px !important;
+    margin: 0 2px !important;
+  }
+  
+  .history-table .actions-cell {
+    padding: 4px !important;
+    gap: 2px !important;
+  }
+}
+
+/* Info-bulles améliorées pour les en-têtes de colonnes */
+.header-with-tooltip {
+  position: relative;
+  cursor: help !important;
+  border-bottom: 1px dotted #007bff !important;
+  transition: all 0.2s ease !important;
+}
+
+.header-with-tooltip:hover {
+  background-color: #e3f2fd !important;
+  color: #1976d2 !important;
+}
+
+/* Améliorer l'affichage natif des tooltips */
+.header-with-tooltip[title]:hover {
+  position: relative;
+}
+
+/* Style personnalisé pour les info-bulles (fallback si besoin) */
+.custom-tooltip {
+  position: relative;
+  display: inline-block;
+}
+
+.custom-tooltip .tooltip-text {
+  visibility: hidden;
+  width: 300px;
+  background-color: #333;
+  color: #fff;
+  text-align: left;
+  border-radius: 6px;
+  padding: 10px;
+  position: absolute;
+  z-index: 1000;
+  bottom: 125%;
+  left: 50%;
+  margin-left: -150px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+.custom-tooltip .tooltip-text::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #333 transparent transparent transparent;
+}
+
+.custom-tooltip:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
 }
 
 /* Cache bust 1762590976 */
