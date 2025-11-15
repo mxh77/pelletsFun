@@ -77,20 +77,50 @@ class GmailService {
       // Initialiser le client Gmail
       this.gmail = google.gmail({ version: 'v1', auth: this.auth });
 
+      // Configurer le renouvellement automatique des tokens
+      this.auth.on('tokens', async (tokens) => {
+        if (tokens.refresh_token) {
+          // Sauvegarder le nouveau refresh_token
+          this.token.refresh_token = tokens.refresh_token;
+        }
+        if (tokens.access_token) {
+          // Mettre à jour l'access_token
+          this.token.access_token = tokens.access_token;
+          this.token.expiry_date = tokens.expiry_date;
+        }
+        
+        // Sauvegarder les tokens mis à jour
+        try {
+          await fs.writeFile(tokenPath, JSON.stringify(this.token, null, 2));
+          console.log('🔄 Tokens Gmail mis à jour automatiquement');
+        } catch (error) {
+          console.error('❌ Erreur sauvegarde tokens:', error);
+        }
+      });
+
       // Tester la connexion et gérer l'expiration du token
       try {
         await this.testConnection();
       } catch (error) {
-        if (error.message.includes('refresh token') || error.message.includes('invalid_grant')) {
-          console.log('🔄 Token expiré ou invalide, nouvelle autorisation requise');
-          return { 
-            configured: false, 
-            error: 'Token expiré - nouvelle autorisation requise',
-            authUrl: await this.getAuthUrl(),
-            needsReauth: true
-          };
+        // Tentative de renouvellement automatique du token
+        if (error.code === 401 || error.message.includes('invalid_grant') || error.message.includes('Token has been expired')) {
+          console.log('🔄 Tentative de renouvellement automatique du token...');
+          try {
+            await this.auth.refreshAccessToken();
+            await this.testConnection(); // Re-tester après renouvellement
+            console.log('✅ Token renouvelé automatiquement avec succès');
+          } catch (refreshError) {
+            console.log('❌ Échec du renouvellement automatique:', refreshError.message);
+            return { 
+              configured: false, 
+              error: 'Token expiré - nouvelle autorisation requise',
+              authUrl: await this.getAuthUrl(),
+              needsReauth: true
+            };
+          }
+        } else {
+          throw error;
         }
-        throw error;
       }
 
       console.log('✅ Service Gmail initialisé avec succès');
@@ -131,18 +161,67 @@ class GmailService {
   async exchangeCodeForToken(code) {
     try {
       const { tokens } = await this.auth.getToken(code);
+      
+      // Vérifier que nous avons bien reçu le refresh_token
+      if (!tokens.refresh_token) {
+        console.warn('⚠️ Aucun refresh_token reçu - vérifier la configuration OAuth2');
+      }
+      
       this.auth.setCredentials(tokens);
       this.token = tokens;
 
-      // Sauvegarder le token
+      // Sauvegarder le token avec métadonnées
+      const tokenData = {
+        ...tokens,
+        created_at: new Date().toISOString(),
+        app_version: '1.0.0'
+      };
+      
       const tokenPath = path.join(process.cwd(), 'config', 'gmail-token.json');
-      await fs.writeFile(tokenPath, JSON.stringify(tokens, null, 2));
+      await fs.writeFile(tokenPath, JSON.stringify(tokenData, null, 2));
 
-      console.log('✅ Token Gmail sauvegardé');
-      return { success: true, message: 'Autorisation Gmail réussie' };
+      console.log('✅ Token Gmail sauvegardé avec refresh_token:', !!tokens.refresh_token);
+      return { 
+        success: true, 
+        message: 'Autorisation Gmail réussie',
+        hasRefreshToken: !!tokens.refresh_token 
+      };
     } catch (error) {
       console.error('❌ Erreur échange token:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Vérifie et renouvelle automatiquement le token si nécessaire
+   */
+  async ensureValidToken() {
+    if (!this.token) {
+      throw new Error('Aucun token disponible');
+    }
+
+    // Vérifier si le token expire bientôt (dans les 5 prochaines minutes)
+    const now = new Date().getTime();
+    const expiryTime = this.token.expiry_date || 0;
+    const timeUntilExpiry = expiryTime - now;
+    const fiveMinutes = 5 * 60 * 1000;
+
+    if (timeUntilExpiry < fiveMinutes) {
+      console.log('🔄 Token proche de l\'expiration, renouvellement préventif...');
+      try {
+        const { credentials } = await this.auth.refreshAccessToken();
+        this.auth.setCredentials(credentials);
+        this.token = { ...this.token, ...credentials };
+        
+        // Sauvegarder les nouveaux tokens
+        const tokenPath = path.join(process.cwd(), 'config', 'gmail-token.json');
+        await fs.writeFile(tokenPath, JSON.stringify(this.token, null, 2));
+        
+        console.log('✅ Token renouvelé préventivement');
+      } catch (error) {
+        console.error('❌ Erreur renouvellement préventif:', error);
+        throw new Error('Impossible de renouveler le token - réauthentification requise');
+      }
     }
   }
 
@@ -153,6 +232,9 @@ class GmailService {
     if (!this.gmail) {
       throw new Error('Gmail client non initialisé');
     }
+
+    // S'assurer que le token est valide avant le test
+    await this.ensureValidToken();
 
     const response = await this.gmail.users.labels.list({ userId: 'me' });
     return response.data.labels.length > 0;
@@ -167,6 +249,8 @@ class GmailService {
     }
 
     try {
+      // S'assurer que le token est valide avant recherche
+      await this.ensureValidToken();
       const {
         dateFrom = null,
         dateTo = null,
@@ -493,6 +577,9 @@ class GmailService {
    */
   async processEmailsDirectly(emails, options = {}) {
     try {
+      // S'assurer que le token est valide avant traitement
+      await this.ensureValidToken();
+      
       const {
         downloadPath = path.join(process.cwd(), 'auto-downloads'),
         processCallback = null,
