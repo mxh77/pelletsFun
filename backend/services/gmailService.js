@@ -32,7 +32,7 @@ class GmailService {
       
       console.log(`🌐 Environnement détecté: ${isProduction ? 'PRODUCTION' : 'DÉVELOPPEMENT'}`);
       console.log(`📁 Fichier credentials: ${credentialsFilename}`);
-      console.log(`🔗 URL de redirection OAuth2: ${isProduction ? 'https://pelletsfun.harmonixe.fr/api/boiler/gmail/callback' : 'localhost'}`);
+      console.log(`🔗 URL de redirection OAuth2: https://pelletsfun.harmonixe.fr/api/boiler/gmail/callback`);
 
       // Vérifier si les credentials existent
       try {
@@ -54,7 +54,7 @@ class GmailService {
       // Sélectionner l'URI de redirection selon l'environnement
       const redirectUri = isProduction 
         ? 'https://pelletsfun.harmonixe.fr/api/boiler/gmail/callback'
-        : redirect_uris.find(uri => uri.includes('localhost')) || redirect_uris[0];
+        : 'https://pelletsfun.harmonixe.fr/api/boiler/gmail/callback';
       
       console.log(`🔗 URI de redirection FORCÉE: ${redirectUri}`);
       this.auth = new google.auth.OAuth2(client_id, client_secret, redirectUri);
@@ -165,9 +165,7 @@ class GmailService {
                          process.cwd().includes('/home/pelletsfun/') ||
                          process.env.PM2_HOME;
     
-    const redirectUri = isProduction 
-      ? 'https://pelletsfun.harmonixe.fr/api/boiler/gmail/callback'
-      : 'http://localhost:3001/api/boiler/gmail/callback';
+    const redirectUri = 'https://pelletsfun.harmonixe.fr/api/boiler/gmail/callback';
 
     return this.auth.generateAuthUrl({
       access_type: 'offline', // Nécessaire pour obtenir un refresh_token
