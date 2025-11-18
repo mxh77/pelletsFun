@@ -151,7 +151,8 @@ class GmailService {
     return this.auth.generateAuthUrl({
       access_type: 'offline', // Nécessaire pour obtenir un refresh_token
       scope: SCOPES,
-      prompt: 'consent' // Force la demande de consentement pour obtenir le refresh_token
+      prompt: 'consent', // Force la demande de consentement pour obtenir le refresh_token
+      redirect_uri: 'https://pelletsfun.harmonixe.fr/api/boiler/gmail/callback' // Forcer l'URL de production
     });
   }
 
