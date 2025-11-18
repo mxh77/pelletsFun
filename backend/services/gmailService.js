@@ -18,7 +18,10 @@ class GmailService {
   async initialize(credentialsPath = null) {
     try {
       // Détecter l'environnement (production ou développement)
-      const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL;
+      const isProduction = process.env.NODE_ENV === 'production' || 
+                           process.env.VERCEL || 
+                           process.cwd().includes('/home/pelletsfun/') ||
+                           process.env.PM2_HOME;
       
       // Chemins par défaut pour les fichiers de configuration
       const credentialsFilename = isProduction ? 'gmail-credentials.production.json' : 'gmail-credentials.json';
@@ -29,6 +32,7 @@ class GmailService {
       
       console.log(`🌐 Environnement détecté: ${isProduction ? 'PRODUCTION' : 'DÉVELOPPEMENT'}`);
       console.log(`📁 Fichier credentials: ${credentialsFilename}`);
+      console.log(`🔗 URL de redirection OAuth2: ${isProduction ? 'https://pelletsfun.harmonixe.fr/api/boiler/gmail/callback' : 'localhost'}`);
 
       // Vérifier si les credentials existent
       try {
@@ -44,14 +48,15 @@ class GmailService {
         };
       }
 
-      // Configurer OAuth2 avec URL de production forcée
+      // Configurer OAuth2 avec la bonne URL selon l'environnement
       const { client_secret, client_id, redirect_uris } = this.credentials.installed || this.credentials.web;
       
-      // Forcer l'utilisation de l'URL de production pour éviter les problèmes de redirection
-      const productionRedirectUri = 'https://pelletsfun.harmonixe.fr/api/boiler/gmail/callback';
-      const redirectUri = isProduction ? productionRedirectUri : redirect_uris[0];
+      // Sélectionner l'URI de redirection selon l'environnement
+      const redirectUri = isProduction 
+        ? 'https://pelletsfun.harmonixe.fr/api/boiler/gmail/callback'
+        : redirect_uris.find(uri => uri.includes('localhost')) || redirect_uris[0];
       
-      console.log(`🔗 URI de redirection utilisée: ${redirectUri}`);
+      console.log(`🔗 URI de redirection FORCÉE: ${redirectUri}`);
       this.auth = new google.auth.OAuth2(client_id, client_secret, redirectUri);
 
       // Charger le token s'il existe
@@ -154,11 +159,21 @@ class GmailService {
       'https://www.googleapis.com/auth/gmail.modify'
     ];
 
+    // Détecter l'environnement pour l'URL de redirection
+    const isProduction = process.env.NODE_ENV === 'production' || 
+                         process.env.VERCEL || 
+                         process.cwd().includes('/home/pelletsfun/') ||
+                         process.env.PM2_HOME;
+    
+    const redirectUri = isProduction 
+      ? 'https://pelletsfun.harmonixe.fr/api/boiler/gmail/callback'
+      : 'http://localhost:3001/api/boiler/gmail/callback';
+
     return this.auth.generateAuthUrl({
       access_type: 'offline', // Nécessaire pour obtenir un refresh_token
       scope: SCOPES,
-      prompt: 'consent' // Force la demande de consentement pour obtenir le refresh_token
-      // Note: redirect_uri sera automatiquement celui configuré dans le client OAuth2
+      prompt: 'consent', // Force la demande de consentement pour obtenir le refresh_token
+      redirect_uri: redirectUri // Utiliser la bonne URL selon l'environnement
     });
   }
 
