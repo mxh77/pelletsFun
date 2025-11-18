@@ -44,9 +44,15 @@ class GmailService {
         };
       }
 
-      // Configurer OAuth2
+      // Configurer OAuth2 avec URL de production forcée
       const { client_secret, client_id, redirect_uris } = this.credentials.installed || this.credentials.web;
-      this.auth = new google.auth.OAuth2(client_id, client_secret, redirect_uris[0]);
+      
+      // Forcer l'utilisation de l'URL de production pour éviter les problèmes de redirection
+      const productionRedirectUri = 'https://pelletsfun.harmonixe.fr/api/boiler/gmail/callback';
+      const redirectUri = isProduction ? productionRedirectUri : redirect_uris[0];
+      
+      console.log(`🔗 URI de redirection utilisée: ${redirectUri}`);
+      this.auth = new google.auth.OAuth2(client_id, client_secret, redirectUri);
 
       // Charger le token s'il existe
       try {
@@ -151,8 +157,8 @@ class GmailService {
     return this.auth.generateAuthUrl({
       access_type: 'offline', // Nécessaire pour obtenir un refresh_token
       scope: SCOPES,
-      prompt: 'consent', // Force la demande de consentement pour obtenir le refresh_token
-      redirect_uri: 'https://pelletsfun.harmonixe.fr/api/boiler/gmail/callback' // Forcer l'URL de production
+      prompt: 'consent' // Force la demande de consentement pour obtenir le refresh_token
+      // Note: redirect_uri sera automatiquement celui configuré dans le client OAuth2
     });
   }
 
