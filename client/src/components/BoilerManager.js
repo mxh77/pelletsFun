@@ -36,8 +36,7 @@ const BoilerManager = () => {
   });
 
   // États pour l'analyse de pompe ECS
-  const [pumpAnalysis, setPumpAnalysis] = useState(null);
-  const [loadingPumpAnalysis, setLoadingPumpAnalysis] = useState(false);
+
 
   // États pour la visualisation de fichier
   const [fileContent, setFileContent] = useState(null);
@@ -148,7 +147,7 @@ const BoilerManager = () => {
           status: file.status,
           // Nouvelles statistiques de la chaudière (avec valeurs par défaut sûres)
           activityRate: typeof file.activityRate === 'number' ? Math.round(file.activityRate * 10) / 10 : null,
-          avgBoilerTemp: typeof file.avgBoilerTemp === 'number' ? Math.round(file.avgBoilerTemp * 10) / 10 : null,
+          avgOutsideTemp: typeof file.avgOutsideTemp === 'number' ? Math.round(file.avgOutsideTemp * 10) / 10 : null,
           maxBoilerTemp: typeof file.maxBoilerTemp === 'number' ? Math.round(file.maxBoilerTemp * 10) / 10 : null,
           avgModulation: typeof file.avgModulation === 'number' ? Math.round(file.avgModulation * 10) / 10 : null,
           runtimeRange: typeof file.runtimeRange === 'string' ? file.runtimeRange : null,
@@ -231,40 +230,7 @@ const BoilerManager = () => {
   };
 
   // Charger l'analyse des cycles de pompe ECS
-  const loadPumpAnalysis = async () => {
-    if (selectedMonths.length === 0) {
-      setPumpAnalysis(null);
-      return;
-    }
 
-    setLoadingPumpAnalysis(true);
-    try {
-      const response = await axios.get(`${API_URL}/api/boiler/pump-analysis`, {
-        params: {
-          selectedMonths: selectedMonths.join(',')
-        }
-      });
-
-      if (response.data.success) {
-        setPumpAnalysis(response.data.analysis);
-      } else {
-        console.error('Erreur analyse pompe:', response.data.message);
-        setPumpAnalysis(null);
-      }
-    } catch (error) {
-      console.error('Erreur chargement analyse pompe:', error);
-      setPumpAnalysis(null);
-    } finally {
-      setLoadingPumpAnalysis(false);
-    }
-  };
-
-  // Déclencher l'analyse pompe quand la sélection des mois change
-  useEffect(() => {
-    if (selectedMonths.length > 0) {
-      loadPumpAnalysis();
-    }
-  }, [selectedMonths]);
 
   // Charger le contenu d'un fichier CSV
   const loadFileContent = async (filename) => {
@@ -1023,7 +989,7 @@ const BoilerManager = () => {
                         <p>{consumption.consumption?.pelletKg?.toFixed(1) || 0} kg pellets</p>
                       </div>
                       <div className="consumption-card">
-                        <h5>🌡️ Température Moyenne</h5>
+                        <h5>🌡️ Température Extérieure Moyenne</h5>
                         <p>{consumption.weather?.avgOutsideTempC?.toFixed(1) || 0}°C</p>
                       </div>
                       <div className="consumption-card">
@@ -1155,7 +1121,7 @@ const BoilerManager = () => {
                                 <th>📁 Fichier</th>
                                 <th>📊 Entrées</th>
                                 <th>� Activité</th>
-                                <th>🌡️ Temp. Moy.</th>
+                                <th>🌡️ Temp. Ext. Moy.</th>
                                 <th>📊 Modulation</th>
                                 <th>⏱️ Runtime</th>
                                 <th>📅 Date Effective</th>
@@ -1186,9 +1152,9 @@ const BoilerManager = () => {
                                     )}
                                   </td>
                                   <td className="temp-cell">
-                                    {file.avgBoilerTemp !== null && file.avgBoilerTemp !== undefined ? (
+                                    {file.avgOutsideTemp !== null && file.avgOutsideTemp !== undefined ? (
                                       <>
-                                        <span className="temp-value">{file.avgBoilerTemp}°C</span>
+                                        <span className="temp-value">{file.avgOutsideTemp}°C</span>
                                         {file.maxBoilerTemp !== null && file.maxBoilerTemp !== undefined && (
                                           <span className="temp-max"> (max: {file.maxBoilerTemp}°C)</span>
                                         )}
@@ -1245,129 +1211,7 @@ const BoilerManager = () => {
                 </div>
               )}
 
-              {/* 🚰 Analyse des cycles de pompe ECS */}
-              {selectedMonths.length > 0 && (
-                <div className="pump-analysis-section">
-                  <h3>🚰 Analyse Cycles Pompe ECS</h3>
-                  
-                  {loadingPumpAnalysis && (
-                    <div className="loading-pump">
-                      <span>🔄 Analyse des cycles de pompe en cours...</span>
-                    </div>
-                  )}
 
-                  {pumpAnalysis && !loadingPumpAnalysis && (
-                    <div className="pump-analysis-results">
-                      {/* Statistiques globales */}
-                      <div className="pump-stats-grid">
-                        <div className="pump-stat-card">
-                          <h4>🔄 Total Cycles</h4>
-                          <span className="stat-value">{pumpAnalysis.totalCycles}</span>
-                        </div>
-                        <div className="pump-stat-card">
-                          <h4>⏱️ Durée Totale</h4>
-                          <span className="stat-value">{pumpAnalysis.totalRuntime}min</span>
-                        </div>
-                        <div className="pump-stat-card">
-                          <h4>📊 Durée Moyenne</h4>
-                          <span className="stat-value">{pumpAnalysis.avgCycleDuration}min</span>
-                        </div>
-                        <div className="pump-stat-card">
-                          <h4>📅 Cycles/Jour</h4>
-                          <span className="stat-value">{pumpAnalysis.cyclesPerDay}</span>
-                        </div>
-                      </div>
-
-                      {/* Graphique des patterns horaires */}
-                      {Object.keys(pumpAnalysis.hourlyPattern).length > 0 && (
-                        <div className="hourly-pattern-section">
-                          <h4>📈 Répartition Horaire des Démarrages</h4>
-                          <div className="hourly-chart">
-                            {Array.from({ length: 24 }, (_, hour) => {
-                              const count = pumpAnalysis.hourlyPattern[hour] || 0;
-                              const maxCount = Math.max(...Object.values(pumpAnalysis.hourlyPattern));
-                              const height = maxCount > 0 ? (count / maxCount) * 100 : 0;
-                              
-                              return (
-                                <div key={hour} className="hour-bar-container">
-                                  <div 
-                                    className="hour-bar" 
-                                    style={{ height: `${height}%` }}
-                                    title={`${hour}h: ${count} démarrages`}
-                                  ></div>
-                                  <span className="hour-label">{hour}h</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Statistiques journalières */}
-                      {pumpAnalysis.dailyStats && pumpAnalysis.dailyStats.length > 0 && (
-                        <div className="daily-stats-section">
-                          <h4>📊 Statistiques Journalières</h4>
-                          <table className="daily-stats-table">
-                            <thead>
-                              <tr>
-                                <th>📅 Date</th>
-                                <th>🔄 Cycles</th>
-                                <th>⏱️ Runtime (min)</th>
-                                <th>🌡️ Temp. Moy. (°C)</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {pumpAnalysis.dailyStats.slice(-7).map((stat, index) => (
-                                <tr key={index}>
-                                  <td>{new Date(stat.date).toLocaleDateString('fr-FR')}</td>
-                                  <td>{stat.cycles}</td>
-                                  <td>{stat.totalRuntime.toFixed(1)}</td>
-                                  <td>{stat.avgTemp}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-
-                      {/* Derniers cycles */}
-                      {pumpAnalysis.recentCycles && pumpAnalysis.recentCycles.length > 0 && (
-                        <div className="recent-cycles-section">
-                          <h4>🕒 Derniers Cycles</h4>
-                          <table className="recent-cycles-table">
-                            <thead>
-                              <tr>
-                                <th>🕒 Début</th>
-                                <th>🕕 Fin</th>
-                                <th>⏱️ Durée (min)</th>
-                                <th>🌡️ Temp. Début</th>
-                                <th>🌡️ Temp. Fin</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {pumpAnalysis.recentCycles.slice(-5).map((cycle, index) => (
-                                <tr key={index}>
-                                  <td>{new Date(cycle.startTime).toLocaleString('fr-FR')}</td>
-                                  <td>{cycle.endTime ? new Date(cycle.endTime).toLocaleString('fr-FR') : '-'}</td>
-                                  <td>{cycle.duration ? cycle.duration.toFixed(1) : '-'}</td>
-                                  <td>{cycle.startTemp ? `${cycle.startTemp.toFixed(1)}°C` : '-'}</td>
-                                  <td>{cycle.endTemp ? `${cycle.endTemp.toFixed(1)}°C` : '-'}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {!pumpAnalysis && !loadingPumpAnalysis && selectedMonths.length > 0 && (
-                    <div className="no-pump-data">
-                      <span>ℹ️ Aucune donnée de pompe disponible pour les mois sélectionnés</span>
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* 📄 Section Visualisation Fichier CSV */}
               {fileContent && (
