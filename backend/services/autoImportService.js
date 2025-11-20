@@ -464,13 +464,11 @@ class AutoImportService {
       // Charger la configuration Gmail
       await this.loadGmailConfig();
       
-      // Redémarrer automatiquement la tâche cron si elle était activée
-      if (config.cronEnabled) {
-        console.log('⏰ Redémarrage automatique de la tâche cron...');
-        this.startCronJob();
-      }
+      // Toujours redémarrer automatiquement la tâche cron au boot du serveur
+      console.log('⏰ Redémarrage automatique de la tâche cron au boot...');
+      await this.startCronJob();
       
-      console.log('✅ AutoImportService initialisé');
+      console.log('✅ AutoImportService initialisé avec tâche cron active');
       return { success: true };
     } catch (error) {
       console.error('❌ Erreur initialisation AutoImportService:', error);
