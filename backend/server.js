@@ -28,7 +28,17 @@ app.use('/api/seasons', require('./routes/seasons'));
 app.use('/api/boiler', require('./routes/boiler'));
 app.use('/api/gmail', require('./routes/gmail'));
 
-app.listen(PORTS.BACKEND, () => {
+// Initialiser l'AutoImportService au démarrage
+const autoImportService = require('./services/autoImportService');
+
+app.listen(PORTS.BACKEND, async () => {
   console.log(`🚀 Backend Express server running on ${PORTS.BACKEND_URL}`);
   console.log(`🔗 Frontend should be available at ${PORTS.FRONTEND_URL}`);
+  
+  // Initialiser l'AutoImportService (chargement config + redémarrage auto cron)
+  try {
+    await autoImportService.initialize();
+  } catch (error) {
+    console.error('❌ Erreur initialisation AutoImportService:', error);
+  }
 });// Debug update

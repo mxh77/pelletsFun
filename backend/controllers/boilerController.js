@@ -896,7 +896,7 @@ exports.updateCronSchedule = async (req, res) => {
     
     // Arrêter l'ancien cron s'il existe
     if (autoImportService.cronJob) {
-      autoImportService.stopCronJob();
+      await autoImportService.stopCronJob();
     }
     
     // Mettre à jour la configuration
@@ -904,14 +904,20 @@ exports.updateCronSchedule = async (req, res) => {
       autoImportService.config.cronSchedule = schedule;
     }
     
+    // Sauvegarder la configuration en base
+    await autoImportService.saveCronConfigToDB(
+      autoImportService.config.cronSchedule, 
+      enabled || false
+    );
+    
     // Démarrer le nouveau cron si activé
     if (enabled) {
-      autoImportService.startCronJob();
+      await autoImportService.startCronJob();
     }
     
     res.json({
       success: true,
-      message: 'Planning mis à jour',
+      message: 'Planning mis à jour et sauvegardé',
       schedule: autoImportService.config.cronSchedule,
       active: autoImportService.cronJob ? true : false
     });
@@ -923,10 +929,10 @@ exports.updateCronSchedule = async (req, res) => {
 
 exports.startCronJob = async (req, res) => {
   try {
-    autoImportService.startCronJob();
+    await autoImportService.startCronJob();
     res.json({
       success: true,
-      message: 'Traitement automatique démarré',
+      message: 'Traitement automatique démarré et sauvegardé',
       schedule: autoImportService.config.cronSchedule
     });
   } catch (error) {
@@ -937,7 +943,7 @@ exports.startCronJob = async (req, res) => {
 
 exports.stopCronJob = async (req, res) => {
   try {
-    autoImportService.stopCronJob();
+    await autoImportService.stopCronJob();
     res.json({
       success: true,
       message: 'Traitement automatique arrêté'

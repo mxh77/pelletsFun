@@ -27,7 +27,8 @@ class AutoImportService {
         enabled: false,
         downloadPath: path.join(process.cwd(), 'auto-downloads')
       },
-      cronSchedule: '0 8 * * *', // Tous les jours à 8h
+      cronSchedule: '0 8 * * *', // Tous les jours à 8h (sera chargé depuis la DB)
+      cronEnabled: false, // Sera chargé depuis la DB
       filePattern: /touch_\d{8}\.csv$/i
     };
     
@@ -289,7 +290,7 @@ class AutoImportService {
   }
 
   // Démarrer la tâche cron pour vérification périodique
-  startCronJob() {
+  async startCronJob() {
     if (this.cronJob) return;
 
     console.log(`⏰ Planification des vérifications automatiques: ${this.config.cronSchedule}`);
@@ -311,16 +312,26 @@ class AutoImportService {
     });
 
     this.cronJob.start();
-    console.log('✅ Tâche cron démarrée');
+    
+    // Sauvegarder l'état en base de données
+    this.config.cronEnabled = true;
+    await this.saveCronConfigToDB(this.config.cronSchedule, true);
+    
+    console.log('✅ Tâche cron démarrée et sauvegardée');
   }
 
   // Arrêter la tâche cron
-  stopCronJob() {
+  async stopCronJob() {
     if (this.cronJob) {
       this.cronJob.stop();
       this.cronJob.destroy();
       this.cronJob = null;
-      console.log('✅ Tâche cron arrêtée');
+      
+      // Sauvegarder l'état en base de données
+      this.config.cronEnabled = false;
+      await this.saveCronConfigToDB(this.config.cronSchedule, false);
+      
+      console.log('✅ Tâche cron arrêtée et sauvegardée');
     }
   }
 
@@ -378,8 +389,8 @@ class AutoImportService {
     }
   }
 
-  // Obtenir la configuration de pattern temporel depuis la base de données
-  async getImportInterval() {
+  // Charger la configuration complète depuis la base de données
+  async loadConfigFromDB() {
     try {
       const BoilerConfig = require('../models/BoilerConfig');
       let config = await BoilerConfig.findOne({ configType: 'main' });
@@ -390,11 +401,87 @@ class AutoImportService {
           nominalPower: 15,
           pelletsPerKWh: 0.2,
           importInterval: 1,
+          cronSchedule: '0 8 * * *',
+          cronEnabled: false,
           configType: 'main'
         });
         await config.save();
+        console.log('🆕 Configuration par défaut créée');
       }
       
+      // Mettre à jour la configuration locale
+      this.config.cronSchedule = config.cronSchedule;
+      this.config.cronEnabled = config.cronEnabled;
+      
+      console.log(`📅 Configuration cron chargée: ${config.cronSchedule}, activé: ${config.cronEnabled}`);
+      
+      return {
+        importInterval: config.importInterval,
+        cronSchedule: config.cronSchedule,
+        cronEnabled: config.cronEnabled
+      };
+    } catch (error) {
+      console.error('❌ Erreur chargement configuration:', error);
+      return {
+        importInterval: 1,
+        cronSchedule: '0 8 * * *',
+        cronEnabled: false
+      };
+    }
+  }
+  
+  // Sauvegarder la configuration cron en base de données
+  async saveCronConfigToDB(cronSchedule, cronEnabled) {
+    try {
+      const BoilerConfig = require('../models/BoilerConfig');
+      
+      const result = await BoilerConfig.findOneAndUpdate(
+        { configType: 'main' },
+        { 
+          cronSchedule: cronSchedule,
+          cronEnabled: cronEnabled,
+          updatedAt: new Date()
+        },
+        { upsert: true, new: true }
+      );
+      
+      console.log(`💾 Configuration cron sauvegardée: ${cronSchedule}, activé: ${cronEnabled}`);
+      return result;
+    } catch (error) {
+      console.error('❌ Erreur sauvegarde configuration cron:', error);
+      throw error;
+    }
+  }
+  
+  // Initialiser le service au démarrage
+  async initialize() {
+    try {
+      console.log('🚀 Initialisation AutoImportService...');
+      
+      // Charger la configuration depuis la DB
+      const config = await this.loadConfigFromDB();
+      
+      // Charger la configuration Gmail
+      await this.loadGmailConfig();
+      
+      // Redémarrer automatiquement la tâche cron si elle était activée
+      if (config.cronEnabled) {
+        console.log('⏰ Redémarrage automatique de la tâche cron...');
+        this.startCronJob();
+      }
+      
+      console.log('✅ AutoImportService initialisé');
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Erreur initialisation AutoImportService:', error);
+      return { success: false, error: error.message };
+    }
+  }
+  
+  // Obtenir la configuration de pattern temporel depuis la base de données
+  async getImportInterval() {
+    try {
+      const config = await this.loadConfigFromDB();
       return config.importInterval;
     } catch (error) {
       console.error('❌ Erreur récupération intervalle:', error);
@@ -558,15 +645,44 @@ class AutoImportService {
   }
 
   // Mettre à jour la configuration
-  updateConfig(newConfig) {
+  async updateConfig(newConfig) {
     this.config = { ...this.config, ...newConfig };
     
     if (newConfig.autoImport && !this.isWatching) {
       this.startWatching();
-      this.startCronJob();
+      await this.startCronJob();
     } else if (!newConfig.autoImport && this.isWatching) {
       this.stopWatching();
-      this.stopCronJob();
+      await this.stopCronJob();
+    }
+  }
+  
+  // Mettre à jour uniquement le planning cron
+  async updateCronSchedule(newSchedule) {
+    try {
+      const wasActive = this.cronJob ? true : false;
+      
+      // Arrêter l'ancien cron s'il existe
+      if (this.cronJob) {
+        await this.stopCronJob();
+      }
+      
+      // Mettre à jour le schedule
+      this.config.cronSchedule = newSchedule;
+      
+      // Redémarrer si il était actif
+      if (wasActive) {
+        await this.startCronJob();
+      } else {
+        // Juste sauvegarder le nouveau schedule sans l'activer
+        await this.saveCronConfigToDB(newSchedule, false);
+      }
+      
+      console.log(`📅 Planning cron mis à jour: ${newSchedule}, actif: ${wasActive}`);
+      return { success: true, schedule: newSchedule, active: wasActive };
+    } catch (error) {
+      console.error('❌ Erreur mise à jour planning:', error);
+      throw error;
     }
   }
 }
