@@ -67,6 +67,8 @@ pelletsFun/
 - **PM2** : Gestion processus production avec restart automatique
 - **Git workflow** : Commits détaillés + push automatique + déploiement
 
+**Note importante** : Il faut bien utiliser `ssh pelletsfun@192.168.1.90` (IP locale) et non le nom de domaine pour les opérations de maintenance serveur.
+
 ## 🎯 STATUT ACTUEL
 ✅ **Fonctionnel** : Toutes les fonctionnalités opérationnelles en dev et prod
 ✅ **Sécurisé** : Credentials protégées, configuration centralisée  

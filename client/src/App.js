@@ -4,11 +4,10 @@ import { Tabs, Tab, Container, Navbar, Nav } from 'react-bootstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFire, faHome } from '@fortawesome/free-solid-svg-icons';
 import Dashboard from './components/Dashboard';
+import StockManager from './components/StockManager';
 import DeliveryForm from './components/DeliveryForm';
-import DeliveryList from './components/DeliveryList';
 import EditDeliveryForm from './components/EditDeliveryForm';
 import RechargeForm from './components/RechargeForm';
-import RechargeList from './components/RechargeList';
 import EditRechargeForm from './components/EditRechargeForm';
 import SeasonManager from './components/SeasonManager';
 import BoilerManager from './components/BoilerManager';
@@ -65,12 +64,9 @@ function App() {
 const TabsComponent = () => (
   <div>
     <Dashboard />
-    <Tabs defaultActiveKey="deliveries" id="main-tabs" className="mb-3 custom-tabs mt-5">
-      <Tab eventKey="deliveries" title="📦 Livraisons">
-        <DeliveryList />
-      </Tab>
-      <Tab eventKey="recharges" title="🔥 Chargements">
-        <RechargeList />
+    <Tabs defaultActiveKey="stock" id="main-tabs" className="mb-3 custom-tabs mt-5">
+      <Tab eventKey="stock" title="📦🔥 Gestion Stock">
+        <StockManager />
       </Tab>
       <Tab eventKey="seasons" title="❄️ Saisons">
         <SeasonManager />

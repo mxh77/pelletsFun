@@ -329,7 +329,7 @@ class GmailService {
         });
       }
 
-      console.log('🔍 Recherche Gmail:', query);
+      // Recherche Gmail en cours
 
       // Optimisation: Limiter la recherche selon le contexte
       const queryOptions = {
@@ -360,7 +360,7 @@ class GmailService {
         }
       }
 
-      console.log('🔍 Recherche Gmail optimisée:', queryOptions.q);
+      // Recherche Gmail optimisée lancée
 
       // Gestion de la pagination pour les gros volumes
       let allMessages = [];

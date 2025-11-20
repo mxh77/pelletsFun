@@ -205,7 +205,7 @@ class AutoImportService {
   startWatching() {
     if (this.isWatching) return;
 
-    console.log('🔍 Démarrage de la surveillance automatique des fichiers CSV...');
+    // Démarrage de la surveillance automatique des fichiers CSV
     
     // Surveiller le dossier racine pour les nouveaux CSV
     const rootWatcher = chokidar.watch('*.csv', {

@@ -89,8 +89,7 @@ const BoilerManager = () => {
   const loadAutoImportStatus = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/boiler/auto-import/status`);
-      console.log('🔍 Auto-import status loaded:', response.data);
-      console.log('🔍 isWatching value:', response.data?.isWatching);
+      // Auto-import status loaded successfully
       setAutoImportStatus(response.data);
     } catch (error) {
       console.error('Erreur chargement auto-import status:', error);

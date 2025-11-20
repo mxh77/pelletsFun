@@ -136,3 +136,5 @@ Exemples de messages de commit :
 - Surveiller l'utilisation MongoDB Atlas (quota 512MB)
 - Vérifier les certificats SSL et la configuration Nginx
 - Maintenir la documentation des nouvelles fonctionnalités
+
+**Note importante** : Il faut bien utiliser `ssh pelletsfun@192.168.1.90` (IP locale) et non le nom de domaine pour les opérations de maintenance serveur.

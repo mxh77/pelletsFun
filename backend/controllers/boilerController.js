@@ -176,13 +176,13 @@ exports.importUploadedCSV = async (req, res) => {
             // (température chaudière > 0 ET date valide) - la chaudière peut être à l'arrêt (modulation=0) mais avoir une température de base
             // Si runtime n'existe pas (undefined), on valide uniquement sur la température
             if (lineCount <= 5) {
-              console.log(`🔍 DEBUG validation ligne ${lineCount}: runtime=${runtime}, boilerTemp=${boilerTemp}, date=${!isNaN(date.getTime())}`);
+              // Validation des données effectuée
             }
             const isValidEntry = (runtime !== undefined && runtime > 0) || 
                                  (runtime === 0 && boilerTemp > 0 && !isNaN(date.getTime())) ||
                                  (runtime === undefined && boilerTemp > 0 && !isNaN(date.getTime()));
             if (lineCount <= 5) {
-              console.log(`✅ DEBUG résultat validation ligne ${lineCount}: ${isValidEntry}`);
+              // Validation de la ligne effectuée
             }
 
             if (isValidEntry) {
@@ -329,13 +329,13 @@ exports.importBoilerCSV = async (req, res) => {
             // (température chaudière > 0 ET date valide) - la chaudière peut être à l'arrêt (modulation=0) mais avoir une température de base
             // Si runtime n'existe pas (undefined), on valide uniquement sur la température
             if (lineCount <= 5) {
-              console.log(`🔍 DEBUG Gmail ligne ${lineCount}: runtime=${runtime}, boilerTemp=${boilerTemp}, date=${!isNaN(date.getTime())}`);
+              // Validation des données Gmail effectuée
             }
             const isValidEntry = (runtime !== undefined && runtime > 0) || 
                                  (runtime === 0 && boilerTemp > 0 && !isNaN(date.getTime())) ||
                                  (runtime === undefined && boilerTemp > 0 && !isNaN(date.getTime()));
             if (lineCount <= 5) {
-              console.log(`✅ DEBUG Gmail résultat ligne ${lineCount}: ${isValidEntry}`);
+              // Validation Gmail de la ligne effectuée
             }
             
             if (isValidEntry) {
@@ -399,7 +399,7 @@ exports.calculateConsumption = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     
-    console.log('🔍 Calcul consommation - Paramètres reçus:', { startDate, endDate });
+    // Calcul de la consommation pour la période demandée
     
     if (!startDate || !endDate) {
       return res.status(400).json({ 
@@ -435,10 +435,7 @@ exports.calculateConsumption = async (req, res) => {
       date: { $lte: endDateObj }
     }).sort({ date: -1, time: -1 });
 
-    console.log('🔍 Données trouvées:', {
-      startData: startData ? { date: startData.date, runtime: startData.runtime } : null,
-      endData: endData ? { date: endData.date, runtime: endData.runtime } : null
-    });
+    // Données de début et fin récupérées
 
     if (!startData || !endData) {
       // Cherchons les données disponibles pour diagnostic
@@ -1793,7 +1790,7 @@ exports.getFileContent = async (req, res) => {
       path.join(__dirname, '../../client/public', filename)
     ];
     
-    console.log(`🔍 Recherche fichier "${filename}" dans les répertoires:`, possiblePaths.map(p => path.relative(__dirname, p)));
+    // Recherche du fichier CSV dans les répertoires possibles
     
     let filePath = null;
     let fileExists = false;
