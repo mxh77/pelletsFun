@@ -11,7 +11,6 @@ import RechargeForm from './components/RechargeForm';
 import EditRechargeForm from './components/EditRechargeForm';
 import SeasonManager from './components/SeasonManager';
 import BoilerManager from './components/BoilerManager';
-import GmailConfig from './components/GmailConfig';
 import UpdateNotification from './components/UpdateNotification';
 import './App.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -73,9 +72,6 @@ const TabsComponent = () => (
       </Tab>
       <Tab eventKey="boiler" title="🔥 Chaudière">
         <BoilerManager />
-      </Tab>
-      <Tab eventKey="gmail" title="📧 Gmail Auto">
-        <GmailConfig />
       </Tab>
     </Tabs>
   </div>
