@@ -372,6 +372,8 @@
   overflow: hidden;
   border-left: 5px solid #28a745;
   transition: transform 0.2s, box-shadow 0.2s;
+  margin-right: 20%; /* Décalage pour laisser place aux chargements */
+  width: 100%;
 }
 
 .delivery-card:hover {
@@ -478,6 +480,8 @@
   overflow: hidden;
   border-left: 5px solid #dc3545;
   transition: transform 0.2s, box-shadow 0.2s;
+  margin-left: 25%; /* Décalage vers la droite */
+  width: 75%; /* Largeur réduite */
 }
 
 .recharge-card:hover {
@@ -504,6 +508,24 @@
 
 .recharge-stats .quantity {
   background: #dc3545;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 15px;
+  font-size: 0.9em;
+  font-weight: 600;
+}
+
+.recharge-stats .price {
+  background: #17a2b8;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 15px;
+  font-size: 0.9em;
+  font-weight: 600;
+}
+
+.recharge-stats .total {
+  background: #6c757d;
   color: white;
   padding: 4px 12px;
   border-radius: 15px;

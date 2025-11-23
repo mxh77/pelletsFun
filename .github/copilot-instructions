@@ -1,5 +1,8 @@
 # Instructions pour GitHub Copilot - PelletsFun
 
+## Instructions générales
+**TOUJOURS répondre en français** - Toutes les communications, explications, suggestions et commentaires doivent être exclusivement en français.
+
 ## Contexte du projet
 Ce projet est une application de gestion de données de chaudière à pellets avec :
 - Backend Node.js/Express avec MongoDB

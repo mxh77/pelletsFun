@@ -37,7 +37,7 @@ const DeliveryForm = () => {
               <input type="number" className="form-control mb-2" id="quantity" placeholder="Quantité" value={quantity} onChange={(e) => setQuantity(e.target.value)} required />
             </div>
             <div className="col-auto">
-              <input type="number" className="form-control mb-2" id="price" placeholder="Prix" value={price} onChange={(e) => setPrice(e.target.value)} required />
+              <input type="number" className="form-control mb-2" id="price" placeholder="Prix total livraison" value={price} onChange={(e) => setPrice(e.target.value)} required />
             </div>
           </div>
           <div className="flex-container form-row align-items-center space-between">

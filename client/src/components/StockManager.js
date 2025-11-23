@@ -48,8 +48,8 @@ const StockManager = () => {
     const totalConsumed = rechargeData.reduce((sum, r) => sum + r.quantity, 0);
     const currentStock = totalDelivered - totalConsumed;
     
-    // Calcul du prix moyen pondéré
-    const totalValue = deliveryData.reduce((sum, d) => sum + (d.quantity * d.price), 0);
+    // Calcul du prix moyen pondéré (delivery.price est le prix total de la livraison)
+    const totalValue = deliveryData.reduce((sum, d) => sum + d.price, 0);
     const avgPrice = totalDelivered > 0 ? totalValue / totalDelivered : 0;
     
     setStockAnalysis({
@@ -263,7 +263,8 @@ const StockManager = () => {
                       <th>Date</th>
                       <th>Quantité</th>
                       <th>Restant</th>
-                      <th>Prix</th>
+                      <th>Prix Total</th>
+                      <th>Prix/sac</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
@@ -283,7 +284,8 @@ const StockManager = () => {
                             ></div>
                           </div>
                         </td>
-                        <td>{delivery.price}€</td>
+                        <td><strong>{delivery.price}€</strong></td>
+                        <td>{(delivery.price / delivery.quantity).toFixed(2)}€</td>
                         <td>
                           <Link to={`/edit-delivery/${delivery._id}`} className="btn btn-sm btn-outline-primary mr-1">
                             <FontAwesomeIcon icon={faEdit} />
@@ -310,29 +312,41 @@ const StockManager = () => {
                     <tr>
                       <th>Date</th>
                       <th>Quantité</th>
-                      <th>Coût</th>
+                      <th>Coût Total</th>
+                      <th>Prix/sac</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {recharges.map(recharge => (
-                      <tr key={recharge._id}>
-                        <td>{new Date(recharge.date).toLocaleDateString('fr-FR')}</td>
-                        <td>{recharge.quantity}</td>
-                        <td>{recharge.totalAmount?.toFixed(2)}€</td>
-                        <td>
-                          <Link to={`/edit-recharge/${recharge._id}`} className="btn btn-sm btn-outline-primary mr-1">
-                            <FontAwesomeIcon icon={faEdit} />
-                          </Link>
-                          <button 
-                            onClick={() => handleDeleteRecharge(recharge._id)}
-                            className="btn btn-sm btn-outline-danger"
-                          >
-                            <FontAwesomeIcon icon={faTrash} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                    {recharges.map(recharge => {
+                      // Calculer le prix moyen par sac pour ce chargement
+                      const links = calculateLinks(recharge);
+                      const avgPricePerSac = links.length > 0 ? 
+                        (links.reduce((sum, link) => {
+                          const delivery = deliveries.find(d => d._id === link.deliveryId);
+                          return sum + (delivery ? (delivery.price / delivery.quantity) * link.quantity : 0);
+                        }, 0) / recharge.quantity) : 0;
+                      
+                      return (
+                        <tr key={recharge._id}>
+                          <td>{new Date(recharge.date).toLocaleDateString('fr-FR')}</td>
+                          <td>{recharge.quantity}</td>
+                          <td>{recharge.totalAmount?.toFixed(2)}€</td>
+                          <td>{avgPricePerSac.toFixed(2)}€</td>
+                          <td>
+                            <Link to={`/edit-recharge/${recharge._id}`} className="btn btn-sm btn-outline-primary mr-1">
+                              <FontAwesomeIcon icon={faEdit} />
+                            </Link>
+                            <button 
+                              onClick={() => handleDeleteRecharge(recharge._id)}
+                              className="btn btn-sm btn-outline-danger"
+                            >
+                              <FontAwesomeIcon icon={faTrash} />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -406,8 +420,8 @@ const StockManager = () => {
                           <h4>📦 Livraison du {event.date.toLocaleDateString('fr-FR')}</h4>
                           <div className="delivery-stats">
                             <span className="quantity">{event.quantity} sacs</span>
-                            <span className="price">{event.price}€/sac</span>
-                            <span className="total">{(event.quantity * event.price).toFixed(2)}€</span>
+                            <span className="price">{(event.price / event.quantity).toFixed(2)}€/sac</span>
+                            <span className="total">{event.price.toFixed(2)}€ total</span>
                           </div>
                         </div>
                       </div>
@@ -441,7 +455,13 @@ const StockManager = () => {
                           <h4>🔥 Chargement du {event.date.toLocaleDateString('fr-FR')}</h4>
                           <div className="recharge-stats">
                             <span className="quantity">{event.quantity} sacs</span>
-                            <span className="cost">{event.totalAmount?.toFixed(2)}€</span>
+                            <span className="price">{links.length > 0 ? 
+                              (links.reduce((sum, link) => {
+                                const delivery = deliveries.find(d => d._id === link.deliveryId);
+                                return sum + (delivery ? (delivery.price / delivery.quantity) * link.quantity : 0);
+                              }, 0) / event.quantity).toFixed(2) : '0.00'
+                            }€/sac</span>
+                            <span className="total">{event.totalAmount?.toFixed(2) || '0.00'}€ total</span>
                           </div>
                         </div>
                       </div>
@@ -458,7 +478,7 @@ const StockManager = () => {
                                 <div className="flow-visual">
                                   <div className="delivery-point">
                                     <span className="date">{new Date(delivery.date).toLocaleDateString('fr-FR')}</span>
-                                    <span className="price">{delivery.price}€/sac</span>
+                                    <span className="price">{(delivery.price / delivery.quantity).toFixed(2)}€/sac</span>
                                   </div>
                                   <div className="flow-arrow">
                                     <div className="arrow-line"></div>
@@ -487,7 +507,7 @@ const StockManager = () => {
                             <strong>Prix moyen:</strong> {links.length > 0 ? 
                               (links.reduce((sum, link) => {
                                 const delivery = deliveries.find(d => d._id === link.deliveryId);
-                                return sum + (delivery ? delivery.price * link.quantity : 0);
+                                return sum + (delivery ? (delivery.price / delivery.quantity) * link.quantity : 0);
                               }, 0) / event.quantity).toFixed(2) : '0.00'
                             }€/sac
                           </div>
