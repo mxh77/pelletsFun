@@ -145,14 +145,17 @@ class FileRecoveryService {
 
       console.log(`📅 Période Gmail: ${dateFrom.toISOString().split('T')[0]} à ${dateTo.toISOString().split('T')[0]}`);
 
-      // Récupérer tous les emails de cette période
+      // Récupérer tous les emails de cette période avec paramètres optimaux
       const searchParams = {
         dateFrom: dateFrom.toISOString().split('T')[0],
         dateTo: dateTo.toISOString().split('T')[0],
         downloadPath: this.backendAutoDownloadsPath,
         subject: 'X128812',
-        markAsProcessed: false, // Ne pas marquer comme traités pour éviter les doublons
-        processCallback: null // Pas de traitement, juste téléchargement
+        markAsProcessed: false, // Ne pas marquer comme traités
+        processCallback: null, // Pas de traitement automatique, juste téléchargement
+        // Paramètres pour optimiser la recherche
+        sender: ['support@okofen.fr', 'noreply@okofen.fr'], // Ajuster selon vos expéditeurs
+        maxResults: 500 // Augmenter la limite pour être sûr de tout récupérer
       };
 
       const result = await this.gmailService.processOkofenEmails(searchParams);
@@ -338,39 +341,71 @@ class FileRecoveryService {
       gmailAvailable = await this.initializeGmail();
     }
 
-    // Étape 1: Récupération optimisée Gmail pour les fichiers récents
+    // Étape 1: Récupération PRIORITAIRE Gmail pour les fichiers récents
     if (gmailAvailable && filteredFiles.length > 0) {
-      console.log(`\n📧 === RÉCUPÉRATION GMAIL (depuis ${fromDate}) ===`);
+      console.log(`\n📧 === RÉCUPÉRATION GMAIL PRIORITAIRE (depuis ${fromDate}) ===`);
       const gmailResult = await this.recoverAllMissingFilesFromGmail(filteredFiles);
       
       if (gmailResult.success) {
-        console.log(`✅ Gmail: ${gmailResult.recovered}/${filteredFiles.length} fichiers récupérés`);
+        console.log(`✅ Gmail: ${gmailResult.recovered}/${filteredFiles.length} fichiers originaux récupérés`);
       } else {
         console.log(`❌ Gmail: Erreur - ${gmailResult.error}`);
       }
     }
 
-    // Étape 2: Génération depuis DB pour les fichiers non récupérés
-    console.log(`\n🔧 === GÉNÉRATION DEPUIS BASE DE DONNÉES ===`);
-    
-    for (let i = 0; i < this.missingFiles.length; i++) {
-      const filename = this.missingFiles[i];
-      const progress = `[${i + 1}/${this.missingFiles.length}]`;
+    // Étape 2: Récupération Gmail individuelle pour fichiers non récupérés
+    if (gmailAvailable) {
+      console.log(`\n📧 === RÉCUPÉRATION GMAIL INDIVIDUELLE ===`);
       
-      // Vérifier si le fichier existe déjà (récupéré par Gmail)
-      const filePath = path.join(this.backendAutoDownloadsPath, filename);
-      if (fs.existsSync(filePath)) {
-        console.log(`${progress} ${filename} - DÉJÀ RÉCUPÉRÉ`);
-        continue;
+      for (let i = 0; i < this.missingFiles.length; i++) {
+        const filename = this.missingFiles[i];
+        const progress = `[${i + 1}/${this.missingFiles.length}]`;
+        
+        // Vérifier si le fichier existe déjà
+        const filePath = path.join(this.backendAutoDownloadsPath, filename);
+        if (fs.existsSync(filePath)) {
+          console.log(`${progress} ${filename} - DÉJÀ RÉCUPÉRÉ`);
+          continue;
+        }
+
+        console.log(`${progress} Tentative Gmail: ${filename}`);
+        const recovered = await this.recoverFileFromGmail(filename);
+        
+        if (!recovered) {
+          console.log(`⚠️ ${filename} - Non trouvé dans Gmail`);
+        }
+
+        // Pause entre les fichiers pour éviter la surcharge Gmail
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
+    }
 
-      console.log(`${progress} Génération: ${filename}`);
-      await this.generateFileFromDatabase(filename);
-
-      // Pause entre les fichiers pour éviter la surcharge
-      if (i < this.missingFiles.length - 1) {
+    // Étape 3: Génération DB uniquement en DERNIER RECOURS
+    console.log(`\n🔧 === GÉNÉRATION DB (DERNIER RECOURS UNIQUEMENT) ===`);
+    
+    let remainingFiles = [];
+    for (const filename of this.missingFiles) {
+      const filePath = path.join(this.backendAutoDownloadsPath, filename);
+      if (!fs.existsSync(filePath)) {
+        remainingFiles.push(filename);
+      }
+    }
+    
+    if (remainingFiles.length > 0) {
+      console.log(`⚠️ ${remainingFiles.length} fichiers non trouvés dans Gmail`);
+      console.log('🔧 Génération depuis base de données en dernier recours...');
+      
+      for (let i = 0; i < remainingFiles.length; i++) {
+        const filename = remainingFiles[i];
+        const progress = `[${i + 1}/${remainingFiles.length}]`;
+        
+        console.log(`${progress} Génération DB: ${filename}`);
+        await this.generateFileFromDatabase(filename);
+        
         await new Promise(resolve => setTimeout(resolve, 500));
       }
+    } else {
+      console.log('🎉 Tous les fichiers ont été récupérés depuis Gmail !');
     }
   }
 
@@ -449,9 +484,10 @@ async function main() {
     // Demander confirmation si des fichiers sont manquants
     if (recoveryService.missingFiles.length > 0) {
       console.log(`\n⚠️ ${recoveryService.missingFiles.length} fichiers manquants détectés.`);
-      console.log('Stratégie de récupération optimisée:\n');
-      console.log(`📧 Gmail: Fichiers depuis ${fromDate}`);
-      console.log('🔧 Base DB: Génération pour tous les autres fichiers\n');
+      console.log('🎯 STRATÉGIE: RÉCUPÉRATION FICHIERS ORIGINAUX DEPUIS GMAIL\n');
+      console.log(`📧 Étape 1: Récupération globale Gmail (période ${fromDate} → aujourd'hui)`);
+      console.log(`📧 Étape 2: Récupération Gmail individuelle (tous fichiers restants)`);
+      console.log('🔧 Étape 3: Génération DB (dernier recours uniquement)\n');
 
       // Récupérer les fichiers avec la date spécifiée
       await recoveryService.recoverMissingFiles(true, fromDate);
