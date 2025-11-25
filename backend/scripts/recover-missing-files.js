@@ -302,8 +302,8 @@ class FileRecoveryService {
     }
   }
 
-  // Filtrer les fichiers manquants pour ne récupérer que depuis le 08/11/2025
-  filterMissingFilesByDate(missingFiles, fromDate = '2025-11-08') {
+  // Filtrer les fichiers manquants pour ne récupérer que depuis le 30/07/2025 (premier fichier réel sur serveur)
+  filterMissingFilesByDate(missingFiles, fromDate = '2025-07-30') {
     const cutoffDate = new Date(fromDate);
     
     return missingFiles.filter(filename => {
@@ -318,7 +318,7 @@ class FileRecoveryService {
   }
 
   // Récupérer tous les fichiers manquants
-  async recoverMissingFiles(useGmail = true, fromDate = '2025-11-08') {
+  async recoverMissingFiles(useGmail = true, fromDate = '2025-07-30') {
     if (this.missingFiles.length === 0) {
       console.log('\n🎉 Aucun fichier manquant détecté !');
       return;
@@ -330,10 +330,10 @@ class FileRecoveryService {
 
     console.log(`\n🔄 Récupération de ${this.missingFiles.length} fichiers manquants...`);
     if (filteredFiles.length > 0) {
-      console.log(`📅 Focus période depuis ${fromDate}: ${filteredFiles.length} fichiers`);
+      console.log(`📅 Période réelle serveur depuis ${fromDate}: ${filteredFiles.length} fichiers`);
     }
     if (otherFiles.length > 0) {
-      console.log(`📋 Autres fichiers (générés depuis DB): ${otherFiles.length} fichiers`);
+      console.log(`📋 Fichiers antérieurs (n'existent pas sur serveur): ${otherFiles.length} fichiers`);
     }
 
     let gmailAvailable = false;
@@ -380,19 +380,37 @@ class FileRecoveryService {
       }
     }
 
-    // Étape 3: Génération DB uniquement en DERNIER RECOURS
-    console.log(`\n🔧 === GÉNÉRATION DB (DERNIER RECOURS UNIQUEMENT) ===`);
+    // Étape 3: Traitement des fichiers restants
+    console.log(`\n🔧 === TRAITEMENT FICHIERS RESTANTS ===`);
     
     let remainingFiles = [];
+    let ignoredFiles = [];
+    
     for (const filename of this.missingFiles) {
       const filePath = path.join(this.backendAutoDownloadsPath, filename);
       if (!fs.existsSync(filePath)) {
-        remainingFiles.push(filename);
+        // Vérifier si le fichier est dans la période valide du serveur
+        const match = filename.match(/touch_(\d{4})(\d{2})(\d{2})\.csv/);
+        if (match) {
+          const [, year, month, day] = match;
+          const fileDate = new Date(year, month - 1, day);
+          const serverStartDate = new Date('2025-07-30');
+          
+          if (fileDate >= serverStartDate) {
+            remainingFiles.push(filename);
+          } else {
+            ignoredFiles.push(filename);
+          }
+        }
       }
     }
     
+    if (ignoredFiles.length > 0) {
+      console.log(`📅 ${ignoredFiles.length} fichiers antérieurs au 30/07/2025 ignorés (période avant serveur)`);
+    }
+    
     if (remainingFiles.length > 0) {
-      console.log(`⚠️ ${remainingFiles.length} fichiers non trouvés dans Gmail`);
+      console.log(`⚠️ ${remainingFiles.length} fichiers récents non trouvés dans Gmail`);
       console.log('🔧 Génération depuis base de données en dernier recours...');
       
       for (let i = 0; i < remainingFiles.length; i++) {
@@ -404,8 +422,10 @@ class FileRecoveryService {
         
         await new Promise(resolve => setTimeout(resolve, 500));
       }
-    } else {
+    } else if (ignoredFiles.length === 0) {
       console.log('🎉 Tous les fichiers ont été récupérés depuis Gmail !');
+    } else {
+      console.log('🎉 Tous les fichiers de la période serveur ont été récupérés depuis Gmail !');
     }
   }
 
@@ -462,13 +482,13 @@ async function main() {
 
     // Vérifier les arguments de ligne de commande
     const args = process.argv.slice(2);
-    let fromDate = '2025-11-08'; // Date par défaut: 08/11/2025
+    let fromDate = '2025-07-30'; // Date par défaut: 30/07/2025 (premier fichier réel sur serveur)
     
     if (args.length > 0 && args[0].match(/^\d{4}-\d{2}-\d{2}$/)) {
       fromDate = args[0];
       console.log(`📅 Date personnalisée spécifiée: ${fromDate}`);
     } else {
-      console.log(`📅 Focus récupération Gmail depuis: ${fromDate}`);
+      console.log(`📅 Vérification depuis premier fichier serveur: ${fromDate}`);
       console.log('💡 Usage: node recover-missing-files.js [YYYY-MM-DD]');
     }
 
@@ -485,9 +505,9 @@ async function main() {
     if (recoveryService.missingFiles.length > 0) {
       console.log(`\n⚠️ ${recoveryService.missingFiles.length} fichiers manquants détectés.`);
       console.log('🎯 STRATÉGIE: RÉCUPÉRATION FICHIERS ORIGINAUX DEPUIS GMAIL\n');
-      console.log(`📧 Étape 1: Récupération globale Gmail (période ${fromDate} → aujourd'hui)`);
-      console.log(`📧 Étape 2: Récupération Gmail individuelle (tous fichiers restants)`);
-      console.log('🔧 Étape 3: Génération DB (dernier recours uniquement)\n');
+      console.log(`📧 Étape 1: Récupération globale Gmail (période réelle serveur ${fromDate} → aujourd'hui)`);
+      console.log(`📧 Étape 2: Récupération Gmail individuelle (fichiers restants dans cette période)`);
+      console.log('🔧 Étape 3: Ignorer fichiers antérieurs au 30/07/2025 (non existants sur serveur)\n');
 
       // Récupérer les fichiers avec la date spécifiée
       await recoveryService.recoverMissingFiles(true, fromDate);
