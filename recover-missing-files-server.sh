@@ -32,10 +32,11 @@ echo "   - Fichiers auto-downloads existants: $(ls -1 auto-downloads/ 2>/dev/nul
 echo ""
 
 echo "🚀 Lancement du script de récupération..."
+echo "📅 Focus: Fichiers depuis le 08/11/2025"
 echo "========================================"
 
-# Exécuter le script
-node scripts/recover-missing-files.js
+# Exécuter le script avec date spécifique
+node scripts/recover-missing-files.js 2025-11-08
 
 echo ""
 echo "📈 Vérification post-traitement:"
