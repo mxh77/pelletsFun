@@ -150,6 +150,21 @@ class AutoImportService {
           if (result.success) {
             console.log(`✅ Import réussi: ${result.validEntries} entrées`);
             
+            // Copier le fichier vers backend/auto-downloads pour les graphiques
+            const backendAutoDownloadsPath = path.join(process.cwd(), 'backend', 'auto-downloads');
+            if (!fs.existsSync(backendAutoDownloadsPath)) {
+              fs.mkdirSync(backendAutoDownloadsPath, { recursive: true });
+            }
+            
+            const destinationPath = path.join(backendAutoDownloadsPath, path.basename(filePath));
+            
+            try {
+              fs.copyFileSync(filePath, destinationPath);
+              console.log(`📋 Fichier copié vers backend/auto-downloads: ${path.basename(filePath)}`);
+            } catch (copyError) {
+              console.error(`❌ Erreur copie fichier:`, copyError);
+            }
+            
             // Archiver le fichier traité
             if (autoImportService.config.archiveProcessedFiles) {
               await autoImportService.archiveFile(filePath);
@@ -241,6 +256,21 @@ class AutoImportService {
         // Importer le fichier
         const result = await this.importCSVFile(fullPath, filename);
         console.log(`✅ Import automatique réussi: ${result.message}`);
+
+        // Copier le fichier vers backend/auto-downloads pour les graphiques
+        const backendAutoDownloadsPath = path.join(process.cwd(), 'backend', 'auto-downloads');
+        if (!fs.existsSync(backendAutoDownloadsPath)) {
+          fs.mkdirSync(backendAutoDownloadsPath, { recursive: true });
+        }
+        
+        const destinationPath = path.join(backendAutoDownloadsPath, filename);
+        
+        try {
+          fs.copyFileSync(fullPath, destinationPath);
+          console.log(`📋 Fichier copié vers backend/auto-downloads: ${filename}`);
+        } catch (copyError) {
+          console.error(`❌ Erreur copie fichier:`, copyError);
+        }
 
         // Optionnel: déplacer le fichier traité
         const processedDir = path.join(watchPath, 'processed');
@@ -373,6 +403,22 @@ class AutoImportService {
 
           console.log(`🔄 Import du fichier: ${file.name}`);
           await this.importCSVFile(file.path, file.name);
+          
+          // Copier le fichier vers backend/auto-downloads pour les graphiques
+          const backendAutoDownloadsPath = path.join(process.cwd(), 'backend', 'auto-downloads');
+          if (!fs.existsSync(backendAutoDownloadsPath)) {
+            fs.mkdirSync(backendAutoDownloadsPath, { recursive: true });
+          }
+          
+          const destinationPath = path.join(backendAutoDownloadsPath, file.name);
+          
+          try {
+            fs.copyFileSync(file.path, destinationPath);
+            console.log(`📋 Fichier copié vers backend/auto-downloads: ${file.name}`);
+          } catch (copyError) {
+            console.error(`❌ Erreur copie fichier:`, copyError);
+          }
+          
           processedFiles.push(file.name);
         }
 
