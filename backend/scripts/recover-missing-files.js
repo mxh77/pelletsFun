@@ -14,6 +14,10 @@ const path = require('path');
 const fs = require('fs');
 const mongoose = require('mongoose');
 
+// Charger les variables d'environnement
+require('dotenv').config({ path: path.join(__dirname, '..', '.env.local') });
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+
 // Configuration de la base de données
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/pelletsFun';
 
