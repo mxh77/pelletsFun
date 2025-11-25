@@ -62,19 +62,35 @@ class FileRecoveryService {
     }
   }
 
-  // Analyser les fichiers manquants
+  // Analyser les fichiers manquants UNIQUEMENT dans la période serveur (30 juillet - 8 novembre 2025)
   async analyzeMissingFiles() {
     try {
-      console.log('🔍 Analyse des fichiers importés en base de données...');
+      console.log('🔍 Analyse des fichiers dans la période serveur (30/07/2025 - 08/11/2025)...');
+      
+      // Définir la plage de dates du serveur
+      const serverStartDate = new Date('2025-07-30');
+      const serverEndDate = new Date('2025-11-08');
       
       // Récupérer tous les noms de fichiers uniques depuis la base
-      const uniqueFilenames = await BoilerData.distinct('filename');
-      this.stats.totalFilesInDB = uniqueFilenames.length;
+      const allFilenames = await BoilerData.distinct('filename');
+      console.log(`📊 Total fichiers en base: ${allFilenames.length}`);
       
-      console.log(`📊 Fichiers uniques en base: ${uniqueFilenames.length}`);
+      // Filtrer uniquement les fichiers dans la plage de dates du serveur
+      const serverPeriodFiles = allFilenames.filter(filename => {
+        const match = filename.match(/touch_(\d{4})(\d{2})(\d{2})\.csv/);
+        if (match) {
+          const [, year, month, day] = match;
+          const fileDate = new Date(year, month - 1, day);
+          return fileDate >= serverStartDate && fileDate <= serverEndDate;
+        }
+        return false;
+      });
+      
+      console.log(`📅 Fichiers dans période serveur (30/07-08/11): ${serverPeriodFiles.length}`);
+      this.stats.totalFilesInDB = serverPeriodFiles.length;
 
       // Vérifier quels fichiers existent dans backend/auto-downloads
-      for (const filename of uniqueFilenames) {
+      for (const filename of serverPeriodFiles) {
         const filePath = path.join(this.backendAutoDownloadsPath, filename);
         
         if (fs.existsSync(filePath)) {
@@ -87,8 +103,8 @@ class FileRecoveryService {
         }
       }
 
-      console.log(`\n📈 Résumé de l'analyse:`);
-      console.log(`   Total fichiers en base: ${this.stats.totalFilesInDB}`);
+      console.log(`\n📈 Résumé de l'analyse (période serveur uniquement):`);
+      console.log(`   Fichiers période serveur: ${this.stats.totalFilesInDB}`);
       console.log(`   Fichiers existants: ${this.stats.existingFiles}`);
       console.log(`   Fichiers manquants: ${this.stats.missingFiles}`);
 
@@ -503,11 +519,11 @@ async function main() {
 
     // Demander confirmation si des fichiers sont manquants
     if (recoveryService.missingFiles.length > 0) {
-      console.log(`\n⚠️ ${recoveryService.missingFiles.length} fichiers manquants détectés.`);
+      console.log(`\n⚠️ ${recoveryService.missingFiles.length} fichiers manquants dans la période serveur.`);
       console.log('🎯 STRATÉGIE: RÉCUPÉRATION FICHIERS ORIGINAUX DEPUIS GMAIL\n');
-      console.log(`📧 Étape 1: Récupération globale Gmail (période réelle serveur ${fromDate} → aujourd'hui)`);
-      console.log(`📧 Étape 2: Récupération Gmail individuelle (fichiers restants dans cette période)`);
-      console.log('🔧 Étape 3: Ignorer fichiers antérieurs au 30/07/2025 (non existants sur serveur)\n');
+      console.log(`📧 Étape 1: Récupération globale Gmail (période manquante dans auto-downloads)`);
+      console.log(`📧 Étape 2: Récupération Gmail individuelle (fichiers restants)`);
+      console.log('🔧 Étape 3: Génération DB (dernier recours uniquement)\n');
 
       // Récupérer les fichiers avec la date spécifiée
       await recoveryService.recoverMissingFiles(true, fromDate);
