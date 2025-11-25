@@ -1926,3 +1926,116 @@ exports.getFileContent = async (req, res) => {
     });
   }
 };
+
+// Récupérer les données de température pour graphique journalier
+exports.getTemperatureData = async (req, res) => {
+  try {
+    const { filename } = req.params;
+    const fs = require('fs').promises;
+    const path = require('path');
+    
+    console.log(`📊 Demande données température pour: ${filename}`);
+    
+    // Construire le chemin complet du fichier
+    const autoDownloadsPath = path.join(process.cwd(), 'auto-downloads');
+    const filePath = path.join(autoDownloadsPath, filename);
+    
+    // Vérifier que le fichier existe
+    try {
+      await fs.access(filePath);
+    } catch (error) {
+      return res.status(404).json({
+        success: false,
+        message: 'Fichier non trouvé'
+      });
+    }
+    
+    // Lire le fichier CSV
+    const fileContent = await fs.readFile(filePath, 'utf-8');
+    const lines = fileContent.split('\n').filter(line => line.trim());
+    
+    if (lines.length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Fichier CSV invalide ou vide'
+      });
+    }
+    
+    // Parser les données
+    const headers = lines[0].split(';');
+    const temperatureData = [];
+    
+    // Trouver les indices des colonnes qui nous intéressent
+    let dateIndex = -1, timeIndex = -1, ambientTempIndex = -1, targetTempIndex = -1, outdoorTempIndex = -1;
+    
+    headers.forEach((header, index) => {
+      const cleanHeader = header.trim();
+      if (cleanHeader === 'Datum') dateIndex = index;
+      else if (cleanHeader === 'Zeit') timeIndex = index;
+      else if (cleanHeader.includes('HK1 RT Ist[') && cleanHeader.includes('C]')) ambientTempIndex = index; // Température réelle
+      else if (cleanHeader.includes('HK1 RT Soll[') && cleanHeader.includes('C]')) targetTempIndex = index; // Température de consigne
+      else if (cleanHeader.includes('ATakt [') && cleanHeader.includes('C]')) outdoorTempIndex = index; // Température extérieure
+    });
+    
+    if (dateIndex === -1 || timeIndex === -1 || ambientTempIndex === -1 || targetTempIndex === -1 || outdoorTempIndex === -1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Colonnes de température non trouvées dans le fichier',
+        found: {
+          date: dateIndex !== -1,
+          time: timeIndex !== -1,
+          ambientTemp: ambientTempIndex !== -1,
+          targetTemp: targetTempIndex !== -1,
+          outdoorTemp: outdoorTempIndex !== -1
+        }
+      });
+    }
+    
+    // Parser chaque ligne de données
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(';');
+      
+      if (values.length > Math.max(dateIndex, timeIndex, ambientTempIndex, targetTempIndex, outdoorTempIndex)) {
+        const date = values[dateIndex]?.trim();
+        const time = values[timeIndex]?.trim();
+        const realTemp = parseFloat(values[ambientTempIndex]?.trim().replace(',', '.'));
+        const setpointTemp = parseFloat(values[targetTempIndex]?.trim().replace(',', '.'));
+        const outdoorTemp = parseFloat(values[outdoorTempIndex]?.trim().replace(',', '.'));
+        
+        // Créer un timestamp combiné
+        if (date && time && !isNaN(realTemp) && !isNaN(setpointTemp) && !isNaN(outdoorTemp)) {
+          // Convertir la date allemande (DD.MM.YYYY) en format ISO
+          const [day, month, year] = date.split('.');
+          const timestamp = new Date(`${year}-${month}-${day}T${time}`);
+          
+          temperatureData.push({
+            timestamp: timestamp.toISOString(),
+            realTemp,
+            setpointTemp,
+            outdoorTemp
+          });
+        }
+      }
+    }
+    
+    // Trier par timestamp
+    temperatureData.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    
+    res.json({
+      success: true,
+      data: {
+        filename,
+        totalPoints: temperatureData.length,
+        temperatureData
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur récupération données température:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération des données de température',
+      error: error.message
+    });
+  }
+};

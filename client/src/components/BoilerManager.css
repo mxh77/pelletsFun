@@ -2281,7 +2281,35 @@ select:disabled {
 
 
 /* Boutons actions fichiers - taille homogène FORCÉE */
-.history-table .actions-cell .btn-view-file,
+.history-table .actions-cell .btn-view-chart {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  border: none !important;
+  border-radius: 6px !important;
+  margin: 0 3px !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  color: white !important;
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3) !important;
+}
+
+.history-table .actions-cell .btn-view-chart:hover {
+  background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4) !important;
+}
+
 .history-table .actions-cell .btn-delete-import {
   display: inline-flex !important;
   align-items: center !important;
@@ -2302,15 +2330,7 @@ select:disabled {
   box-shadow: none !important;
 }
 
-.history-table .actions-cell .btn-view-file {
-  background: #17a2b8 !important;
-  color: white !important;
-}
 
-.history-table .actions-cell .btn-view-file:hover {
-  background: #138496 !important;
-  transform: translateY(-1px) !important;
-}
 
 .history-table .actions-cell .btn-delete-import {
   background: #dc3545 !important;
@@ -2354,7 +2374,6 @@ select:disabled {
   }
   
   /* Maintenir la taille des boutons même sur mobile */
-  .history-table .actions-cell .btn-view-file,
   .history-table .actions-cell .btn-delete-import {
     width: 28px !important;
     height: 28px !important;
@@ -2805,73 +2824,7 @@ select:disabled {
   transform: translateY(-1px);
 }
 
-/* Modal de Fichier */
-.file-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
-}
 
-.file-modal {
-  background: white;
-  border-radius: 12px;
-  max-width: 90vw;
-  max-height: 90vh;
-  overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-}
-
-.modal-header {
-  padding: 20px;
-  background: linear-gradient(135deg, #3498db, #2980b9);
-  color: white;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.modal-header h3 {
-  margin: 0;
-  font-size: 1.2rem;
-}
-
-.modal-close {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 1.5rem;
-  cursor: pointer;
-  padding: 5px 10px;
-  border-radius: 4px;
-  transition: background 0.3s ease;
-}
-
-.modal-close:hover {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.modal-content {
-  padding: 20px;
-  max-height: 70vh;
-  overflow-y: auto;
-}
-
-.modal-content pre {
-  background: #f8f9fa;
-  padding: 15px;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  line-height: 1.4;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
 
 /* Loading States */
 .loading-message {
@@ -2892,27 +2845,7 @@ select:disabled {
   animation: spin 1s linear infinite;
 }
 
-.loading-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9998;
-}
 
-.spinner-border {
-  width: 3rem;
-  height: 3rem;
-  border: 0.25em solid rgba(255, 255, 255, 0.25);
-  border-right-color: #3498db;
-  border-radius: 50%;
-  animation: spinner-border 0.75s linear infinite;
-}
 
 @keyframes spin {
   0% { transform: rotate(0deg); }

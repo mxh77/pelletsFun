@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { 
@@ -15,15 +15,9 @@ const StockManager = () => {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [viewMode, setViewMode] = useState('graph'); // 'table', 'graph'
-  const [selectedDelivery, setSelectedDelivery] = useState(null);
   const [stockAnalysis, setStockAnalysis] = useState(null);
-  const graphContainerRef = useRef(null);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [deliveriesRes, rechargesRes] = await Promise.all([
@@ -41,7 +35,11 @@ const StockManager = () => {
       setRecharges([]);
     }
     setLoading(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const calculateStockAnalysis = (deliveryData, rechargeData) => {
     const totalDelivered = deliveryData.reduce((sum, d) => sum + d.quantity, 0);

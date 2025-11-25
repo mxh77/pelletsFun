@@ -53,4 +53,7 @@ router.delete('/import/:filename', boilerController.deleteImport);
 // Visualisation du contenu d'un fichier CSV
 router.get('/file-content/:filename', boilerController.getFileContent);
 
+// Données de température pour graphique
+router.get('/temperature-data/:filename', boilerController.getTemperatureData);
+
 module.exports = router;

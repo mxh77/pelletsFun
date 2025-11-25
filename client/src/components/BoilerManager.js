@@ -3,6 +3,7 @@ import axios from 'axios';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCog, faHistory, faChevronDown, faChevronRight, faEye, faDownload, faFile } from '@fortawesome/free-solid-svg-icons';
 import ConfigurationCenter from './ConfigurationCenter';
+import TemperatureChart from './TemperatureChart';
 import './BoilerManager.css';
 
 const BoilerManager = () => {
@@ -16,9 +17,9 @@ const BoilerManager = () => {
   // État pour la vue configuration
   const [showConfiguration, setShowConfiguration] = useState(false);
   
-  // États pour la visualisation de fichier
-  const [fileContent, setFileContent] = useState(null);
-  const [loadingFileContent, setLoadingFileContent] = useState(false);
+  // État pour le graphique de température
+  const [showTemperatureChart, setShowTemperatureChart] = useState(false);
+  const [selectedChartFile, setSelectedChartFile] = useState(null);
 
   const API_URL = process.env.REACT_APP_API_URL || '';
 
@@ -147,22 +148,7 @@ const BoilerManager = () => {
   };
 
 
-  const viewFileContent = async (filename) => {
-    try {
-      setLoadingFileContent(true);
-      const response = await axios.get(`${API_URL}/api/boiler/view-file/${encodeURIComponent(filename)}`);
-      setFileContent({
-        filename: filename,
-        content: response.data.content,
-        preview: response.data.preview
-      });
-    } catch (error) {
-      console.error('Erreur visualisation fichier:', error);
-      alert('Erreur lors de la visualisation du fichier');
-    } finally {
-      setLoadingFileContent(false);
-    }
-  };
+
 
   const downloadFile = async (filename) => {
     try {
@@ -182,6 +168,17 @@ const BoilerManager = () => {
       console.error('Erreur téléchargement fichier:', error);
       alert('Erreur lors du téléchargement du fichier');
     }
+  };
+
+  // Fonction pour afficher le graphique de température
+  const showTemperatureGraph = (filename) => {
+    setSelectedChartFile(filename);
+    setShowTemperatureChart(true);
+  };
+
+  const closeTemperatureChart = () => {
+    setShowTemperatureChart(false);
+    setSelectedChartFile(null);
   };
 
   // Si on affiche la configuration, retourner le composant de configuration
@@ -391,11 +388,11 @@ const BoilerManager = () => {
                               <td className="file-size">{file.avgFileSize || 'N/A'}</td>
                               <td className="actions-cell">
                                 <button 
-                                  onClick={() => viewFileContent(file.filename)}
-                                  className="btn-view-file"
-                                  title={`Visualiser le contenu de "${file.filename}"`}
+                                  onClick={() => showTemperatureGraph(file.filename)}
+                                  className="btn-view-chart"
+                                  title={`Graphique températures "${file.filename}"`}
                                 >
-                                  👁️
+                                  📊
                                 </button>
                                 <button 
                                   onClick={() => downloadFile(file.filename)}
@@ -417,33 +414,14 @@ const BoilerManager = () => {
         </div>
       </div>
 
-      {/* Modal de visualisation de fichier */}
-      {fileContent && (
-        <div className="file-modal-overlay" onClick={() => setFileContent(null)}>
-          <div className="file-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>📄 {fileContent.filename}</h3>
-              <button 
-                onClick={() => setFileContent(null)}
-                className="modal-close"
-              >
-                ×
-              </button>
-            </div>
-            <div className="modal-content">
-              <pre>{fileContent.preview || fileContent.content}</pre>
-            </div>
-          </div>
-        </div>
+      {/* Modal graphique de température */}
+      {showTemperatureChart && selectedChartFile && (
+        <TemperatureChart 
+          filename={selectedChartFile}
+          onClose={closeTemperatureChart}
+        />
       )}
 
-      {loadingFileContent && (
-        <div className="loading-overlay">
-          <div className="spinner-border" role="status">
-            <span className="sr-only">Chargement du fichier...</span>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
