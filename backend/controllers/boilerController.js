@@ -1937,7 +1937,7 @@ exports.getTemperatureData = async (req, res) => {
     console.log(`📊 Demande données température pour: ${filename}`);
     
     // Construire le chemin complet du fichier
-    const autoDownloadsPath = path.join(process.cwd(), 'auto-downloads');
+    const autoDownloadsPath = path.join(process.cwd(), 'backend', 'auto-downloads');
     const filePath = path.join(autoDownloadsPath, filename);
     
     // Vérifier que le fichier existe
