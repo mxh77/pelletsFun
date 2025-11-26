@@ -5,10 +5,12 @@
 
 ## Contexte du projet
 Ce projet est une application de gestion de données de chaudière à pellets avec :
-- Backend Node.js/Express avec MongoDB
+- Backend Node.js/Express avec MongoDB Atlas (même DB pour dev et prod)
 - Frontend React
-- Intégration Gmail API pour import automatique
-- Déploiement sur serveur Proxmox
+- Intégration Gmail API OAuth2 pour import automatique de fichiers CSV
+- Déploiement sur serveur Proxmox avec PM2
+- Production : https://pelletsfun.harmonixe.fr
+- Backend port 3001 (dev) / 5000 (prod), Frontend port 3000 (dev)
 
 ## Instructions de développement
 
@@ -24,10 +26,12 @@ Ce projet est une application de gestion de données de chaudière à pellets av
 - Logger les opérations importantes avec des emojis pour faciliter le debugging
 
 ### Gestion des données
-- Éviter la duplication de données en MongoDB (optimisation quota)
+- Éviter la duplication de données en MongoDB (optimisation quota 512MB)
 - Implémenter la suppression en cascade pour maintenir l'intégrité
 - Utiliser les agrégations MongoDB pour les statistiques
 - Maintenir l'historique des imports avec catégorisation temporelle
+- **IMPORTANT** : Modèle BoilerData utilise le champ 'date' (pas 'timestamp') pour les requêtes
+- Fichiers CSV avec format Ökofen : colonnes avec espaces ('AT [°C]', 'PE1 KT[°C]', 'PE1 SW[°C]')
 
 ### Interface utilisateur
 - Utiliser les composants pliables existants
@@ -36,10 +40,13 @@ Ce projet est une application de gestion de données de chaudière à pellets av
 - Confirmations utilisateur pour les actions destructives
 
 ### Configuration Gmail
-- Centraliser toute la configuration Gmail dans GmailConfig
-- Supporter les multi-expéditeurs via le tableau senders
+- Centraliser toute la configuration Gmail dans GmailConfig (collection MongoDB)
+- Supporter les multi-expéditeurs via le tableau senders (ex: ['no-reply@my.oekofen.info'])
 - Gérer la migration automatique des anciennes configurations
 - Maintenir la compatibilité OAuth2 avec refresh tokens
+- **Credentials** : backend/config/gmail-credentials.json
+- **Token** : backend/config/gmail-token.json
+- **GmailService** : Accepte credentialsPath et tokenPath en paramètres pour éviter les problèmes de chemins
 
 ## Processus de version et déploiement
 
@@ -134,10 +141,52 @@ Exemples de messages de commit :
 - Vérifier les logs backend pour les erreurs
 - Valider l'interface sur différentes tailles d'écran
 
+## Scripts de récupération de fichiers
+### recover-and-import-missing-files.js
+Script automatique de récupération et import des fichiers CSV manquants depuis Gmail :
+
+**Chemins critiques** :
+- **TOUJOURS** utiliser la détection automatique du répertoire de base :
+  ```javascript
+  const isInBackend = process.cwd().endsWith('backend');
+  const BASE_DIR = isInBackend ? process.cwd() : path.join(process.cwd(), 'backend');
+  ```
+- **NE JAMAIS** hardcoder `backend/` dans les chemins (cause erreurs `backend/backend/`)
+- Auto-downloads : `path.join(BASE_DIR, 'auto-downloads')`
+- Config Gmail : `path.join(BASE_DIR, 'config', 'gmail-credentials.json')`
+
+**Logique de récupération** :
+- Génère dates de startDate jusqu'à **hier (J-1)** - fichier du jour généré le lendemain
+- Vérifie fichier ET données en base (champ 'date' du modèle BoilerData)
+- Charge config Gmail depuis MongoDB (senders, subject)
+- Utilise `searchOkofenEmails` avec `overwriteExisting: true` pour forcer le re-téléchargement
+- Parse CSV avec colonnes Ökofen (espaces dans les noms)
+
+**Flags disponibles** :
+- `--dry-run` : Simulation sans actions
+- `--skip-gmail` : Import fichiers locaux uniquement
+
+**Utilisation** :
+```bash
+node backend/scripts/recover-and-import-missing-files.js 2025-11-01
+# OU depuis backend/
+node scripts/recover-and-import-missing-files.js 2025-11-01
+```
+
+### GmailService - Gestion des chemins
+**CRITIQUE** : `GmailService` doit stocker `this.tokenPath` passé en paramètre et l'utiliser pour :
+- Lecture initiale du token
+- Sauvegarde lors du renouvellement (`ensureValidToken`)
+- Sauvegarde après échange code (`exchangeCodeForToken`)
+
+**NE JAMAIS** utiliser `path.join(process.cwd(), 'config', 'gmail-token.json')` en dur.
+
 ## Maintenance et debugging
 - Utiliser `pm2 logs pelletsfun-backend` pour les logs
 - Surveiller l'utilisation MongoDB Atlas (quota 512MB)
 - Vérifier les certificats SSL et la configuration Nginx
 - Maintenir la documentation des nouvelles fonctionnalités
+- **Problèmes chemins** : Toujours vérifier si lancé depuis racine ou backend/
+- **Import CSV** : Vérifier format colonnes avec espaces (caractères spéciaux UTF-8)
 
 **Note importante** : Il faut bien utiliser `ssh pelletsfun@192.168.1.90` (IP locale) et non le nom de domaine pour les opérations de maintenance serveur.

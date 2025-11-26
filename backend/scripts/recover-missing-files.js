@@ -65,11 +65,11 @@ class FileRecoveryService {
   // Analyser les fichiers manquants UNIQUEMENT dans la période serveur (30 juillet - 8 novembre 2025)
   async analyzeMissingFiles() {
     try {
-      console.log('🔍 Analyse des fichiers dans la période serveur (30/07/2025 - 08/11/2025)...');
+      console.log('🔍 Analyse des fichiers dans la période serveur étendue (30/07/2025 - 25/11/2025)...');
       
-      // Définir la plage de dates du serveur
+      // Définir la plage de dates du serveur (30/07 au 25/11)
       const serverStartDate = new Date('2025-07-30');
-      const serverEndDate = new Date('2025-11-08');
+      const serverEndDate = new Date('2025-11-25');
       
       // Récupérer tous les noms de fichiers uniques depuis la base
       const allFilenames = await BoilerData.distinct('filename');
@@ -86,7 +86,7 @@ class FileRecoveryService {
         return false;
       });
       
-      console.log(`📅 Fichiers dans période serveur (30/07-08/11): ${serverPeriodFiles.length}`);
+      console.log(`📅 Fichiers dans période serveur étendue (30/07-25/11): ${serverPeriodFiles.length}`);
       this.stats.totalFilesInDB = serverPeriodFiles.length;
 
       // Vérifier quels fichiers existent dans backend/auto-downloads

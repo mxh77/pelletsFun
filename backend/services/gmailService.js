@@ -10,12 +10,13 @@ class GmailService {
     this.auth = null;
     this.credentials = null;
     this.token = null;
+    this.tokenPath = null;
   }
 
   /**
    * Initialise le service Gmail avec les credentials OAuth2
    */
-  async initialize(credentialsPath = null) {
+  async initialize(credentialsPath = null, tokenFilePath = null) {
     try {
       // Détecter l'environnement (production ou développement)
       const isProduction = process.env.NODE_ENV === 'production' || 
@@ -26,7 +27,8 @@ class GmailService {
       // Chemins par défaut pour les fichiers de configuration
       const credentialsFilename = isProduction ? 'gmail-credentials.production.json' : 'gmail-credentials.json';
       const defaultCredentialsPath = path.join(process.cwd(), 'config', credentialsFilename);
-      const tokenPath = path.join(process.cwd(), 'config', 'gmail-token.json');
+      const defaultTokenPath = path.join(process.cwd(), 'config', 'gmail-token.json');
+      this.tokenPath = tokenFilePath || defaultTokenPath;
       
       const credsPath = credentialsPath || defaultCredentialsPath;
       
@@ -54,14 +56,14 @@ class GmailService {
       // Sélectionner l'URI de redirection selon l'environnement
       const redirectUri = isProduction 
         ? 'https://pelletsfun.harmonixe.fr/api/boiler/gmail/callback'
-        : 'https://pelletsfun.harmonixe.fr/api/boiler/gmail/callback';
+        : 'http://localhost:3001/api/boiler/gmail/callback';
       
-      console.log(`🔗 URI de redirection FORCÉE: ${redirectUri}`);
+      console.log(`🔗 URI de redirection (${isProduction ? 'PRODUCTION' : 'LOCAL'}): ${redirectUri}`);
       this.auth = new google.auth.OAuth2(client_id, client_secret, redirectUri);
 
       // Charger le token s'il existe
       try {
-        const tokenData = await fs.readFile(tokenPath, 'utf8');
+        const tokenData = await fs.readFile(this.tokenPath, 'utf8');
         this.token = JSON.parse(tokenData);
         
         // Vérifier si le refresh_token est présent
@@ -102,7 +104,7 @@ class GmailService {
         
         // Sauvegarder les tokens mis à jour
         try {
-          await fs.writeFile(tokenPath, JSON.stringify(this.token, null, 2));
+          await fs.writeFile(this.tokenPath, JSON.stringify(this.token, null, 2));
           console.log('🔄 Tokens Gmail mis à jour automatiquement');
         } catch (error) {
           console.error('❌ Erreur sauvegarde tokens:', error);
@@ -165,7 +167,12 @@ class GmailService {
                          process.cwd().includes('/home/pelletsfun/') ||
                          process.env.PM2_HOME;
     
-    const redirectUri = 'https://pelletsfun.harmonixe.fr/api/boiler/gmail/callback';
+    // Sélectionner l'URI de redirection selon l'environnement
+    const redirectUri = isProduction 
+      ? 'https://pelletsfun.harmonixe.fr/api/boiler/gmail/callback'
+      : 'http://localhost:3001/api/boiler/gmail/callback';
+    
+    console.log(`🔗 Auth URL redirect (${isProduction ? 'PRODUCTION' : 'LOCAL'}): ${redirectUri}`);
 
     return this.auth.generateAuthUrl({
       access_type: 'offline', // Nécessaire pour obtenir un refresh_token
@@ -197,8 +204,7 @@ class GmailService {
         app_version: '1.0.0'
       };
       
-      const tokenPath = path.join(process.cwd(), 'config', 'gmail-token.json');
-      await fs.writeFile(tokenPath, JSON.stringify(tokenData, null, 2));
+      await fs.writeFile(this.tokenPath, JSON.stringify(tokenData, null, 2));
 
       console.log('✅ Token Gmail sauvegardé avec refresh_token:', !!tokens.refresh_token);
       return { 
@@ -233,9 +239,8 @@ class GmailService {
         this.auth.setCredentials(credentials);
         this.token = { ...this.token, ...credentials };
         
-        // Sauvegarder les nouveaux tokens
-        const tokenPath = path.join(process.cwd(), 'config', 'gmail-token.json');
-        await fs.writeFile(tokenPath, JSON.stringify(this.token, null, 2));
+        // Sauvegarder les nouveaux tokens en utilisant le chemin stocké
+        await fs.writeFile(this.tokenPath, JSON.stringify(this.token, null, 2));
         
         console.log('✅ Token renouvelé préventivement');
       } catch (error) {
@@ -279,7 +284,12 @@ class GmailService {
       } = options;
 
       // Construire la requête de recherche
-      let query = `has:attachment filename:csv ${subject}`;
+      let query = `has:attachment filename:csv`;
+      
+      // Ajouter le sujet seulement s'il n'est pas vide
+      if (subject && subject.trim()) {
+        query += ` ${subject}`;
+      }
       
       // Support pour plusieurs expéditeurs
       if (sender) {

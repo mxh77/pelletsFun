@@ -779,6 +779,55 @@ exports.updateGmailConfig = async (req, res) => {
   }
 };
 
+// Configuration d'import
+exports.getImportConfig = async (req, res) => {
+  try {
+    const GmailConfig = require('../models/GmailConfig');
+    const config = await GmailConfig.getConfig();
+    
+    res.json({
+      success: true,
+      config: {
+        senderAddresses: config.senders || [],
+        subjectKeywords: [config.subject || 'okofen'],
+        importIntervals: 1, // Valeur par défaut
+        cronSchedule: config.cronSchedule || '0 8 * * *',
+        cronEnabled: config.enabled || false,
+        overwriteFiles: false // Valeur par défaut
+      }
+    });
+  } catch (error) {
+    console.error('Erreur récupération config import:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.saveImportConfig = async (req, res) => {
+  try {
+    const { senderAddresses, subjectKeywords, cronSchedule, cronEnabled } = req.body;
+    
+    const GmailConfig = require('../models/GmailConfig');
+    const config = await GmailConfig.updateConfig({
+      senders: senderAddresses || [],
+      subject: subjectKeywords && subjectKeywords.length > 0 ? subjectKeywords[0] : 'okofen',
+      cronSchedule: cronSchedule || '0 8 * * *',
+      enabled: cronEnabled || false
+    });
+    
+    // Mettre à jour aussi le service d'auto-import
+    await autoImportService.loadGmailConfig();
+    
+    res.json({
+      success: true,
+      message: 'Configuration d\'import sauvegardée avec succès',
+      config: config.toObject()
+    });
+  } catch (error) {
+    console.error('Erreur sauvegarde config import:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // Authentification Gmail
 exports.getGmailAuthUrl = async (req, res) => {
   try {
@@ -803,10 +852,28 @@ exports.handleGmailAuthCallback = async (req, res) => {
     await autoImportService.initializeGmail();
     
     // Rediriger vers l'interface frontend selon l'environnement
-    res.redirect(`https://pelletsfun.harmonixe.fr/?gmail-auth=success`);
+    const isProduction = process.env.NODE_ENV === 'production' || 
+                         process.env.VERCEL || 
+                         process.cwd().includes('/home/pelletsfun/') ||
+                         process.env.PM2_HOME;
+    
+    const frontendUrl = isProduction ? 'https://pelletsfun.harmonixe.fr' : 'http://localhost:3000';
+    console.log(`🔗 Redirection callback (${isProduction ? 'PRODUCTION' : 'LOCAL'}): ${frontendUrl}/?gmail-auth=success`);
+    
+    res.redirect(`${frontendUrl}/?gmail-auth=success`);
   } catch (error) {
     console.error('Erreur callback Gmail:', error);
-    res.redirect(`https://pelletsfun.harmonixe.fr/?gmail-auth=error`);
+    
+    // Rediriger vers l'interface frontend selon l'environnement  
+    const isProduction = process.env.NODE_ENV === 'production' || 
+                         process.env.VERCEL || 
+                         process.cwd().includes('/home/pelletsfun/') ||
+                         process.env.PM2_HOME;
+    
+    const frontendUrl = isProduction ? 'https://pelletsfun.harmonixe.fr' : 'http://localhost:3000';
+    console.log(`🔗 Redirection erreur (${isProduction ? 'PRODUCTION' : 'LOCAL'}): ${frontendUrl}/?gmail-auth=error`);
+    
+    res.redirect(`${frontendUrl}/?gmail-auth=error`);
   }
 };
 
@@ -1935,10 +2002,14 @@ exports.getTemperatureData = async (req, res) => {
     const path = require('path');
     
     console.log(`📊 Demande données température pour: ${filename}`);
+    console.log(`🔍 Répertoire de travail: ${process.cwd()}`);
     
-    // Construire le chemin complet du fichier
-    const autoDownloadsPath = path.join(process.cwd(), 'backend', 'auto-downloads');
+    // Construire le chemin complet du fichier 
+    // Le serveur s'exécute depuis la racine, donc pas besoin d'ajouter 'backend'
+    const autoDownloadsPath = path.join(process.cwd(), 'auto-downloads');
     const filePath = path.join(autoDownloadsPath, filename);
+    
+    console.log(`📁 Chemin calculé: ${filePath}`);
     
     // Vérifier que le fichier existe
     try {

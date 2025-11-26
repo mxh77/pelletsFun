@@ -72,9 +72,9 @@ const ConfigurationCenter = ({ onBack }) => {
 
   const loadGmailConfig = async () => {
     try {
-      const response = await axios.get(`${API_URL}/api/boiler/gmail/status`);
+      const response = await axios.get(`${API_URL}/api/boiler/gmail/config`);
       setGmailConfig({
-        isConfigured: response.data.isConfigured || false,
+        isConfigured: response.data.configured || false,
         lastSync: response.data.lastSync,
         email: response.data.email || ''
       });

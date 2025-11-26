@@ -40,6 +40,8 @@ router.post('/cron/stop', boilerController.stopCronJob);
 // Import manuel
 router.post('/import/manual-trigger', boilerController.triggerManualImport);
 router.get('/import/status', boilerController.getImportStatus);
+router.get('/import/config', boilerController.getImportConfig);
+router.post('/import/config', boilerController.saveImportConfig);
 
 // Gestion des tâches asynchrones
 router.get('/tasks/active', boilerController.getActiveTasks);
