@@ -34,12 +34,51 @@
   border-bottom: 2px solid #f1f3f4;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
+  position: relative;
 }
 
 .temperature-chart-header h3 {
   margin: 0;
   font-size: 1.4rem;
   font-weight: 600;
+  flex: 1;
+  text-align: center;
+}
+
+/* Boutons de navigation */
+.nav-button {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 2rem;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.nav-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.nav-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.nav-previous {
+  margin-right: 10px;
+}
+
+.nav-next {
+  margin-left: 10px;
 }
 
 .close-button {

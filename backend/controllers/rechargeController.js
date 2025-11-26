@@ -16,7 +16,8 @@ exports.createRecharge = async (req, res) => {
       if (remainingQuantity <= 0) break;
       if (delivery.remainingQuantity > 0) {
         const usedQuantity = Math.min(delivery.remainingQuantity, remainingQuantity);
-        totalAmount += usedQuantity * delivery.price;
+        const pricePerSac = delivery.price / delivery.quantity;
+        totalAmount += usedQuantity * pricePerSac;
         remainingQuantity -= usedQuantity;
       }
     }

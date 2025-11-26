@@ -27,10 +27,43 @@ ChartJS.register(
   TimeScale
 );
 
-const TemperatureChart = ({ filename, onClose }) => {
+const TemperatureChart = ({ filename, onClose, allFiles = [], onNavigate }) => {
   const [temperatureData, setTemperatureData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // Trouver l'index du fichier actuel
+  const currentIndex = allFiles.findIndex(f => f === filename);
+  const hasPrevious = currentIndex > 0;
+  const hasNext = currentIndex >= 0 && currentIndex < allFiles.length - 1;
+  
+  const handlePrevious = () => {
+    if (hasPrevious && onNavigate) {
+      onNavigate(allFiles[currentIndex - 1]);
+    }
+  };
+  
+  const handleNext = () => {
+    if (hasNext && onNavigate) {
+      onNavigate(allFiles[currentIndex + 1]);
+    }
+  };
+  
+  // Gestion du clavier (flèches gauche/droite)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowLeft' && hasPrevious) {
+        handlePrevious();
+      } else if (e.key === 'ArrowRight' && hasNext) {
+        handleNext();
+      } else if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [hasPrevious, hasNext, currentIndex]);
 
   const loadTemperatureData = useCallback(async () => {
     try {
@@ -249,7 +282,23 @@ const TemperatureChart = ({ filename, onClose }) => {
     <div className="temperature-chart-modal" onClick={onClose}>
       <div className="temperature-chart-content" onClick={e => e.stopPropagation()}>
         <div className="temperature-chart-header">
+          <button 
+            className="nav-button nav-previous" 
+            onClick={handlePrevious}
+            disabled={!hasPrevious}
+            title="Fichier précédent (←)"
+          >
+            ‹
+          </button>
           <h3>📊 Graphique des Températures</h3>
+          <button 
+            className="nav-button nav-next" 
+            onClick={handleNext}
+            disabled={!hasNext}
+            title="Fichier suivant (→)"
+          >
+            ›
+          </button>
           <button className="close-button" onClick={onClose}>×</button>
         </div>
         

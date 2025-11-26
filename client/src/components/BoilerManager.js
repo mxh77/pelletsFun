@@ -180,6 +180,30 @@ const BoilerManager = () => {
     setShowTemperatureChart(false);
     setSelectedChartFile(null);
   };
+  
+  // Fonction pour naviguer entre les fichiers dans le graphique
+  const navigateToFile = (filename) => {
+    setSelectedChartFile(filename);
+  };
+  
+  // Obtenir la liste de tous les fichiers triés par date
+  const getAllFilesSorted = () => {
+    if (!importHistory) return [];
+    
+    const allFiles = [];
+    Object.keys(importHistory).sort((a, b) => parseInt(a) - parseInt(b)).forEach(year => {
+      Object.keys(importHistory[year]).sort((a, b) => parseInt(a) - parseInt(b)).forEach(monthIndex => {
+        const monthData = importHistory[year][monthIndex];
+        if (monthData && monthData.files && Array.isArray(monthData.files)) {
+          monthData.files.forEach(file => {
+            allFiles.push(file.filename);
+          });
+        }
+      });
+    });
+    
+    return allFiles;
+  };
 
   // Si on affiche la configuration, retourner le composant de configuration
   if (showConfiguration) {
@@ -419,6 +443,8 @@ const BoilerManager = () => {
         <TemperatureChart 
           filename={selectedChartFile}
           onClose={closeTemperatureChart}
+          allFiles={getAllFilesSorted()}
+          onNavigate={navigateToFile}
         />
       )}
 
