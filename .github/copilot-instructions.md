@@ -60,7 +60,8 @@ Ce projet est une application de gestion de données de chaudière à pellets av
 ## Processus de version et déploiement
 
 ### À la fin de chaque développement d'évolution
-**INTERDIT** : Ne jamais proposer de déploiement local ou de production après une évolution.
+**OBLIGATOIRE** : Toujours proposer de tester en local AVANT tout déploiement en production.
+**INTERDIT** : Ne jamais déployer en production sans test local préalable validé par l'utilisateur.
 **INTERDIT** : Ne jamais proposer de build après une évolution (ex.: `npm run build`).
 **INTERDIT** : Ne jamais créer de documentation sans demande explicite.
 

@@ -2,6 +2,45 @@
 const Recharge = require('../models/Recharge');
 const Delivery = require('../models/Delivery');
 
+// Fonction de recalcul automatique des montants (exportée)
+const recalculateAllAmounts = async () => {
+  const recharges = await Recharge.find().sort({ date: 1 });
+  const deliveries = await Delivery.find().sort({ date: 1 });
+
+  // Réinitialiser remainingQuantity pour toutes les livraisons
+  for (const delivery of deliveries) {
+    delivery.remainingQuantity = delivery.quantity;
+    await delivery.save();
+  }
+
+  for (const recharge of recharges) {
+    let remainingQuantity = recharge.quantity;
+    let totalAmount = 0;
+    let details = [];
+
+    for (const delivery of deliveries) {
+      const pricePerSac = delivery.price / delivery.quantity;
+      if (remainingQuantity <= 0) break;
+      if (delivery.remainingQuantity > 0) {
+        const usedQuantity = Math.min(delivery.remainingQuantity, remainingQuantity);
+        totalAmount += usedQuantity * pricePerSac;
+        remainingQuantity -= usedQuantity;
+        delivery.remainingQuantity -= usedQuantity;
+        details.push(`${usedQuantity} sacs à ${pricePerSac.toFixed(2)}€`);
+      }
+    }
+
+    recharge.totalAmount = totalAmount;
+    recharge.details = details.join(' / ');
+    await recharge.save();
+  }
+  
+  // Sauvegarder les livraisons avec les remainingQuantity mis à jour
+  for (const delivery of deliveries) {
+    await delivery.save();
+  }
+};
+
 exports.createRecharge = async (req, res) => {
   try {
     const { date, quantity } = req.body;
@@ -41,7 +80,13 @@ exports.createRecharge = async (req, res) => {
 
     const recharge = new Recharge({ date, quantity, totalAmount });
     await recharge.save();
-    res.status(201).json(recharge);
+    
+    // Recalcul automatique des montants
+    await recalculateAllAmounts();
+    
+    // Recharger le chargement avec les montants à jour
+    const updatedRecharge = await Recharge.findById(recharge._id);
+    res.status(201).json(updatedRecharge);
   } catch (err) {
     console.error('Error creating recharge:', err.message); // Log de l'erreur
     res.status(400).json({ error: err.message });
@@ -82,7 +127,13 @@ exports.updateRechargeById = async (req, res) => {
     if (!recharge) {
       return res.status(404).json({ error: 'Recharge not found' });
     }
-    res.status(200).json(recharge);
+    
+    // Recalcul automatique des montants
+    await recalculateAllAmounts();
+    
+    // Recharger le chargement avec les montants à jour
+    const updatedRecharge = await Recharge.findById(recharge._id);
+    res.status(200).json(updatedRecharge);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -94,6 +145,10 @@ exports.deleteRecharge = async (req, res) => {
     if (!recharge) {
       return res.status(404).json({ error: 'Recharge not found' });
     }
+    
+    // Recalcul automatique des montants
+    await recalculateAllAmounts();
+    
     res.status(200).json({ message: 'Recharge deleted' });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -153,3 +208,6 @@ exports.recalculateRechargeAmounts = async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 };
+
+// Exporter la fonction de recalcul pour utilisation dans d'autres controllers
+exports.recalculateAllAmounts = recalculateAllAmounts;

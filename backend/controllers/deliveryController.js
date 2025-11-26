@@ -1,13 +1,20 @@
 // controllers/deliveryController.js
 const Delivery = require('../models/Delivery');
 const Recharge = require('../models/Recharge');
+const { recalculateAllAmounts } = require('./rechargeController');
 
 exports.createDelivery = async (req, res) => {
   try {
     const { date, quantity, price } = req.body;
     const delivery = new Delivery({ date, quantity, remainingQuantity: quantity, price });
     await delivery.save();
-    res.status(201).json(delivery);
+    
+    // Recalcul automatique des stocks et montants
+    await recalculateAllAmounts();
+    
+    // Recharger la livraison avec les données à jour
+    const updatedDelivery = await Delivery.findById(delivery._id);
+    res.status(201).json(updatedDelivery);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -47,7 +54,13 @@ exports.updateDeliveryById = async (req, res) => {
     if (!delivery) {
       return res.status(404).json({ error: 'Delivery not found' });
     }
-    res.status(200).json(delivery);
+    
+    // Recalcul automatique des stocks et montants
+    await recalculateAllAmounts();
+    
+    // Recharger la livraison avec les données à jour
+    const updatedDelivery = await Delivery.findById(delivery._id);
+    res.status(200).json(updatedDelivery);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -59,6 +72,10 @@ exports.deleteDelivery = async (req, res) => {
     if (!delivery) {
       return res.status(404).json({ error: 'Delivery not found' });
     }
+    
+    // Recalcul automatique des stocks et montants
+    await recalculateAllAmounts();
+    
     res.status(200).json({ message: 'Delivery deleted' });
   } catch (err) {
     res.status(400).json({ error: err.message });
