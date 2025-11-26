@@ -13,3 +13,6 @@ backend/config/*.json
 
 # Scripts de production avec secrets
 setup-gmail-production.sh
+
+# Instructions Copilot personnalisées (local uniquement)
+.github/copilot-instructions
