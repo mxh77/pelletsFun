@@ -31,17 +31,6 @@ const BoilerConfigSchema = new mongoose.Schema({
     max: 60
   },
   
-  // Configuration de la tâche cron
-  cronSchedule: {
-    type: String,
-    default: '0 8 * * *'
-  },
-  
-  cronEnabled: {
-    type: Boolean,
-    default: false
-  },
-  
   // Métadonnées
   createdAt: {
     type: Date,

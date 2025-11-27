@@ -146,17 +146,15 @@ const ConfigurationCenter = ({ onBack }) => {
       console.log('💾 SENDERS DÉTAIL:', importConfig.senders, 'LENGTH:', importConfig.senders.length);
       console.log('💾 PREMIER SENDER:', importConfig.senders[0], 'TYPE:', typeof importConfig.senders[0]);
       
-      // Sauvegarder la configuration Gmail (senders et subject)
+      // Sauvegarder la configuration Gmail (senders, subject ET cronSchedule)
       const response = await axios.post(`${API_URL}/api/boiler/gmail/config`, {
         senders: importConfig.senders,
         subject: importConfig.subject,
+        cronSchedule: importConfig.cronSchedule,
         enabled: true
       });
       
       console.log('✅ Réponse serveur:', response.data);
-      
-      // NE PAS appeler /api/boiler/import/config car il écrase les senders !
-      // TODO: Créer un endpoint séparé pour importInterval et overwriteFiles si nécessaire
       
       setMessage('✅ Configuration d\'import sauvegardée avec succès');
       setTimeout(() => setMessage(''), 3000);
@@ -229,21 +227,6 @@ const ConfigurationCenter = ({ onBack }) => {
     } catch (error) {
       console.error('Erreur toggle cron:', error);
       setMessage('❌ Erreur lors de la modification du traitement programmé');
-    }
-    setLoading(false);
-  };
-
-  const updateCronSchedule = async () => {
-    setLoading(true);
-    try {
-      await axios.post(`${API_URL}/api/boiler/cron/update`, {
-        schedule: importConfig.cronSchedule
-      });
-      setMessage('✅ Planning cron mis à jour avec succès');
-      setTimeout(() => setMessage(''), 3000);
-    } catch (error) {
-      console.error('Erreur mise à jour cron:', error);
-      setMessage('❌ Erreur lors de la mise à jour du planning');
     }
     setLoading(false);
   };
@@ -597,13 +580,6 @@ const ConfigurationCenter = ({ onBack }) => {
                         placeholder="0 6 * * * (tous les jours à 6h)"
                         className="cron-input"
                       />
-                      <button 
-                        onClick={updateCronSchedule}
-                        disabled={loading}
-                        className="btn-update-cron"
-                      >
-                        📅 Mettre à jour
-                      </button>
                     </div>
                   </div>
                 </div>

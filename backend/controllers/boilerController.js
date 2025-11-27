@@ -753,7 +753,7 @@ exports.getGmailConfig = async (req, res) => {
 
 exports.updateGmailConfig = async (req, res) => {
   try {
-    const { enabled, subject, senders } = req.body;
+    const { enabled, subject, senders, cronSchedule } = req.body;
     
     console.log('📧 Requête reçue pour mise à jour Gmail:', req.body);
     
@@ -763,13 +763,20 @@ exports.updateGmailConfig = async (req, res) => {
       sendersArray = [''];
     }
     
-    console.log('📧 Données traitées pour mise à jour Gmail:', { enabled, senders: sendersArray, subject });
+    console.log('📧 Données traitées pour mise à jour Gmail:', { enabled, senders: sendersArray, subject, cronSchedule });
     
     const updatedConfig = await autoImportService.updateGmailConfig({
       enabled: enabled !== undefined ? enabled : autoImportService.config.gmail?.enabled,
       senders: sendersArray,
-      subject: subject !== undefined ? subject : (autoImportService.config.gmail?.subject || '')
+      subject: subject !== undefined ? subject : (autoImportService.config.gmail?.subject || ''),
+      cronSchedule: cronSchedule !== undefined ? cronSchedule : (autoImportService.config.gmail?.cronSchedule || '0 */6 * * *')
     });
+    
+    // Si cronSchedule a changé et que le cron est actif, le redémarrer avec le nouveau planning
+    if (cronSchedule && autoImportService.cronJob) {
+      console.log(`🔄 Redémarrage du cron avec nouveau planning: ${cronSchedule}`);
+      await autoImportService.updateCronSchedule(cronSchedule);
+    }
     
     console.log('✅ Configuration Gmail sauvegardée:', updatedConfig.toObject ? updatedConfig.toObject() : updatedConfig);
     
@@ -796,8 +803,8 @@ exports.getImportConfig = async (req, res) => {
         senderAddresses: config.senders || [],
         subjectKeywords: [config.subject || 'okofen'],
         importIntervals: 1, // Valeur par défaut
-        cronSchedule: config.cronSchedule || '0 8 * * *',
-        cronEnabled: config.enabled || false,
+        cronSchedule: config.cronSchedule || '0 */6 * * *',
+        cronEnabled: config.cronEnabled || false,
         overwriteFiles: false // Valeur par défaut
       }
     });
@@ -815,8 +822,8 @@ exports.saveImportConfig = async (req, res) => {
     const config = await GmailConfig.updateConfig({
       senders: senderAddresses || [],
       subject: subjectKeywords && subjectKeywords.length > 0 ? subjectKeywords[0] : 'okofen',
-      cronSchedule: cronSchedule || '0 8 * * *',
-      enabled: cronEnabled || false
+      cronSchedule: cronSchedule || '0 */6 * * *',
+      cronEnabled: cronEnabled || false
     });
     
     // Mettre à jour aussi le service d'auto-import

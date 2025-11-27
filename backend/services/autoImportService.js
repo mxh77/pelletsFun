@@ -150,20 +150,10 @@ class AutoImportService {
           if (result.success) {
             console.log(`✅ Import réussi: ${result.validEntries} entrées`);
             
-            // Copier le fichier vers backend/auto-downloads pour les graphiques
-            const backendAutoDownloadsPath = path.join(process.cwd(), 'backend', 'auto-downloads');
-            if (!fs.existsSync(backendAutoDownloadsPath)) {
-              fs.mkdirSync(backendAutoDownloadsPath, { recursive: true });
-            }
-            
-            const destinationPath = path.join(backendAutoDownloadsPath, path.basename(filePath));
-            
-            try {
-              fs.copyFileSync(filePath, destinationPath);
-              console.log(`📋 Fichier copié vers backend/auto-downloads: ${path.basename(filePath)}`);
-            } catch (copyError) {
-              console.error(`❌ Erreur copie fichier:`, copyError);
-            }
+            // Le fichier est déjà dans auto-downloads, pas besoin de copier
+            // En production, process.cwd() = /home/pelletsfun/pelletsFun/backend
+            // donc filePath est déjà dans backend/auto-downloads
+            console.log(`📋 Fichier conservé dans: ${path.dirname(filePath)}`)
             
             // Archiver le fichier traité
             if (autoImportService.config.archiveProcessedFiles) {
@@ -193,6 +183,8 @@ class AutoImportService {
         markAsProcessed: true,
         labelProcessed: 'Okofen-Traité',
         subject: this.config.gmail.subject,
+        // En mode automatique (sans période), permettre le re-téléchargement des fichiers récents
+        overwriteExisting: !options.period,
         // Utiliser soit la période personnalisée, soit les paramètres par défaut
         ...searchParams
       };
@@ -257,30 +249,40 @@ class AutoImportService {
         const result = await this.importCSVFile(fullPath, filename);
         console.log(`✅ Import automatique réussi: ${result.message}`);
 
-        // Copier le fichier vers backend/auto-downloads pour les graphiques
-        const backendAutoDownloadsPath = path.join(process.cwd(), 'backend', 'auto-downloads');
-        if (!fs.existsSync(backendAutoDownloadsPath)) {
-          fs.mkdirSync(backendAutoDownloadsPath, { recursive: true });
-        }
+        // Le fichier importé devrait déjà être dans le bon dossier
+        // Si c'est dans le downloadPath (auto-downloads), il est déjà au bon endroit
+        // Si c'est dans la racine, le copier vers auto-downloads
+        const autoDownloadsPath = path.join(process.cwd(), 'auto-downloads');
         
-        const destinationPath = path.join(backendAutoDownloadsPath, filename);
-        
-        try {
-          fs.copyFileSync(fullPath, destinationPath);
-          console.log(`📋 Fichier copié vers backend/auto-downloads: ${filename}`);
-        } catch (copyError) {
-          console.error(`❌ Erreur copie fichier:`, copyError);
+        if (!fullPath.includes('auto-downloads')) {
+          if (!fs.existsSync(autoDownloadsPath)) {
+            fs.mkdirSync(autoDownloadsPath, { recursive: true });
+          }
+          
+          const destinationPath = path.join(autoDownloadsPath, filename);
+          
+          try {
+            fs.copyFileSync(fullPath, destinationPath);
+            console.log(`📋 Fichier copié vers auto-downloads: ${filename}`);
+          } catch (copyError) {
+            console.error(`❌ Erreur copie fichier:`, copyError);
+          }
+        } else {
+          console.log(`📋 Fichier déjà dans auto-downloads: ${filename}`);
         }
 
-        // Optionnel: déplacer le fichier traité
-        const processedDir = path.join(watchPath, 'processed');
-        if (!fs.existsSync(processedDir)) {
-          fs.mkdirSync(processedDir, { recursive: true });
-        }
-        
-        const processedPath = path.join(processedDir, `${Date.now()}_${filename}`);
-        fs.renameSync(fullPath, processedPath);
-        console.log(`📦 Fichier archivé: ${processedPath}`);
+        // Optionnel: déplacer le fichier traité vers un sous-dossier 'processed'
+        // uniquement si ce n'est pas déjà dans auto-downloads
+        if (!fullPath.includes('auto-downloads')) {
+          const processedDir = path.join(watchPath, 'processed');
+          if (!fs.existsSync(processedDir)) {
+            fs.mkdirSync(processedDir, { recursive: true });
+          }
+          
+          const processedPath = path.join(processedDir, `${Date.now()}_${filename}`);
+          fs.renameSync(fullPath, processedPath);
+          console.log(`📦 Fichier archivé: ${processedPath}`);
+        };
 
       } catch (error) {
         console.error(`❌ Erreur import automatique ${filePath}:`, error);
@@ -390,7 +392,28 @@ class AutoImportService {
 
         console.log(`📂 Trouvé ${files.length} fichiers CSV dans ${folder}`);
 
+        // En mode automatique, filtrer par date du fichier (derniers 7 jours uniquement)
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
         for (const file of files) {
+          // Extraire la date du nom de fichier (touch_YYYYMMDD.csv)
+          const dateMatch = file.name.match(/touch_(\d{8})\.csv/);
+          if (dateMatch) {
+            const [year, month, day] = [
+              dateMatch[1].substring(0, 4),
+              dateMatch[1].substring(4, 6),
+              dateMatch[1].substring(6, 8)
+            ];
+            const fileDate = new Date(`${year}-${month}-${day}`);
+            
+            // En mode automatique, ignorer les fichiers de plus de 7 jours
+            if (fileDate < sevenDaysAgo) {
+              skippedFiles.push(file.name);
+              continue;
+            }
+          }
+
           // Vérifier si le fichier n'a pas déjà été importé récemment
           const existingData = await BoilerData.findOne({ 
             filename: file.name 
@@ -404,19 +427,26 @@ class AutoImportService {
           console.log(`🔄 Import du fichier: ${file.name}`);
           await this.importCSVFile(file.path, file.name);
           
-          // Copier le fichier vers backend/auto-downloads pour les graphiques
-          const backendAutoDownloadsPath = path.join(process.cwd(), 'backend', 'auto-downloads');
-          if (!fs.existsSync(backendAutoDownloadsPath)) {
-            fs.mkdirSync(backendAutoDownloadsPath, { recursive: true });
-          }
+          // Le fichier devrait déjà être dans le bon dossier
+          // Vérifier si on doit le déplacer vers auto-downloads
+          const autoDownloadsPath = path.join(process.cwd(), 'auto-downloads');
           
-          const destinationPath = path.join(backendAutoDownloadsPath, file.name);
-          
-          try {
-            fs.copyFileSync(file.path, destinationPath);
-            console.log(`📋 Fichier copié vers backend/auto-downloads: ${file.name}`);
-          } catch (copyError) {
-            console.error(`❌ Erreur copie fichier:`, copyError);
+          // Si le fichier n'est pas déjà dans auto-downloads, le copier
+          if (!file.path.includes('auto-downloads')) {
+            if (!fs.existsSync(autoDownloadsPath)) {
+              fs.mkdirSync(autoDownloadsPath, { recursive: true });
+            }
+            
+            const destinationPath = path.join(autoDownloadsPath, file.name);
+            
+            try {
+              fs.copyFileSync(file.path, destinationPath);
+              console.log(`📋 Fichier copié vers auto-downloads: ${file.name}`);
+            } catch (copyError) {
+              console.error(`❌ Erreur copie fichier:`, copyError);
+            }
+          } else {
+            console.log(`📋 Fichier déjà dans auto-downloads: ${file.name}`);
           }
           
           processedFiles.push(file.name);
@@ -439,32 +469,34 @@ class AutoImportService {
   async loadConfigFromDB() {
     try {
       const BoilerConfig = require('../models/BoilerConfig');
-      let config = await BoilerConfig.findOne({ configType: 'main' });
+      const GmailConfig = require('../models/GmailConfig');
       
-      if (!config) {
-        // Créer une configuration par défaut si elle n'existe pas
-        config = new BoilerConfig({
+      // Charger config chaudière pour importInterval
+      let boilerConfig = await BoilerConfig.findOne({ configType: 'main' });
+      if (!boilerConfig) {
+        boilerConfig = new BoilerConfig({
           nominalPower: 15,
           pelletsPerKWh: 0.2,
           importInterval: 1,
-          cronSchedule: '0 8 * * *',
-          cronEnabled: false,
           configType: 'main'
         });
-        await config.save();
-        console.log('🆕 Configuration par défaut créée');
+        await boilerConfig.save();
+        console.log('🆕 Configuration chaudière par défaut créée');
       }
       
-      // Mettre à jour la configuration locale
-      this.config.cronSchedule = config.cronSchedule;
-      this.config.cronEnabled = config.cronEnabled;
+      // Charger config Gmail pour cron
+      const gmailConfig = await GmailConfig.getConfig();
       
-      console.log(`📅 Configuration cron chargée: ${config.cronSchedule}, activé: ${config.cronEnabled}`);
+      // Mettre à jour la configuration locale
+      this.config.cronSchedule = gmailConfig.cronSchedule;
+      this.config.cronEnabled = gmailConfig.cronEnabled;
+      
+      console.log(`📅 Configuration cron chargée depuis GmailConfig: ${gmailConfig.cronSchedule}, activé: ${gmailConfig.cronEnabled}`);
       
       return {
-        importInterval: config.importInterval,
-        cronSchedule: config.cronSchedule,
-        cronEnabled: config.cronEnabled
+        importInterval: boilerConfig.importInterval,
+        cronSchedule: gmailConfig.cronSchedule,
+        cronEnabled: gmailConfig.cronEnabled
       };
     } catch (error) {
       console.error('❌ Erreur chargement configuration:', error);
@@ -479,19 +511,14 @@ class AutoImportService {
   // Sauvegarder la configuration cron en base de données
   async saveCronConfigToDB(cronSchedule, cronEnabled) {
     try {
-      const BoilerConfig = require('../models/BoilerConfig');
+      const GmailConfig = require('../models/GmailConfig');
       
-      const result = await BoilerConfig.findOneAndUpdate(
-        { configType: 'main' },
-        { 
-          cronSchedule: cronSchedule,
-          cronEnabled: cronEnabled,
-          updatedAt: new Date()
-        },
-        { upsert: true, new: true }
-      );
+      const result = await GmailConfig.updateConfig({
+        cronSchedule: cronSchedule,
+        cronEnabled: cronEnabled
+      });
       
-      console.log(`💾 Configuration cron sauvegardée: ${cronSchedule}, activé: ${cronEnabled}`);
+      console.log(`💾 Configuration cron sauvegardée dans GmailConfig: ${cronSchedule}, activé: ${cronEnabled}`);
       return result;
     } catch (error) {
       console.error('❌ Erreur sauvegarde configuration cron:', error);

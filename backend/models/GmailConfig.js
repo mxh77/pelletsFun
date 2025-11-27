@@ -58,6 +58,11 @@ const gmailConfigSchema = new mongoose.Schema({
   cronSchedule: {
     type: String,
     default: '0 */6 * * *' // Toutes les 6 heures par défaut
+  },
+  
+  cronEnabled: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true,
@@ -85,6 +90,7 @@ gmailConfigSchema.statics.updateConfig = async function(updates) {
   if (updates.autoProcess !== undefined) config.autoProcess = updates.autoProcess;
   if (updates.archiveProcessedEmails !== undefined) config.archiveProcessedEmails = updates.archiveProcessedEmails;
   if (updates.cronSchedule !== undefined) config.cronSchedule = updates.cronSchedule;
+  if (updates.cronEnabled !== undefined) config.cronEnabled = updates.cronEnabled;
   
   await config.save();
   console.log('💾 Config sauvegardée en base:', config.toObject());
