@@ -52,6 +52,9 @@ router.get('/tasks/:taskId/logs', boilerController.getTaskLogs);
 router.get('/import-history', boilerController.getImportHistory);
 router.delete('/import/:filename', boilerController.deleteImport);
 
+// Récupération des fichiers manquants depuis Gmail
+router.post('/recover-missing-files', boilerController.recoverMissingFiles);
+
 // Visualisation du contenu d'un fichier CSV
 router.get('/file-content/:filename', boilerController.getFileContent);
 

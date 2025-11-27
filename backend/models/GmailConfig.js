@@ -77,8 +77,17 @@ gmailConfigSchema.statics.getConfig = async function() {
 
 gmailConfigSchema.statics.updateConfig = async function(updates) {
   const config = await this.getConfig();
-  Object.assign(config, updates);
+  
+  // Mise à jour explicite de chaque champ au lieu de Object.assign
+  if (updates.enabled !== undefined) config.enabled = updates.enabled;
+  if (updates.senders !== undefined) config.senders = updates.senders;
+  if (updates.subject !== undefined) config.subject = updates.subject;
+  if (updates.autoProcess !== undefined) config.autoProcess = updates.autoProcess;
+  if (updates.archiveProcessedEmails !== undefined) config.archiveProcessedEmails = updates.archiveProcessedEmails;
+  if (updates.cronSchedule !== undefined) config.cronSchedule = updates.cronSchedule;
+  
   await config.save();
+  console.log('💾 Config sauvegardée en base:', config.toObject());
   return config;
 };
 

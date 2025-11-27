@@ -15,7 +15,8 @@ const ConfigurationCenter = ({ onBack }) => {
   // Paramètres de la chaudière
   const [boilerConfig, setBoilerConfig] = useState({
     nominalPower: 15,
-    pelletsPerKWh: 0.2
+    pelletsPerKWh: 0.2,
+    installationDate: ''
   });
   
   // Gmail - Authentification
@@ -27,8 +28,8 @@ const ConfigurationCenter = ({ onBack }) => {
   
   // Import - Configuration complète
   const [importConfig, setImportConfig] = useState({
-    senderAddresses: [''],
-    subjectKeywords: [''],
+    senders: [''],
+    subject: '',
     importIntervals: 1,
     cronSchedule: '0 8 * * *',
     cronEnabled: false,
@@ -60,9 +61,17 @@ const ConfigurationCenter = ({ onBack }) => {
     try {
       const response = await axios.get(`${API_URL}/api/boiler/stats`);
       if (response.data?.config) {
+        const installationDate = response.data.config.installationDate 
+          ? new Date(response.data.config.installationDate).toISOString().split('T')[0] 
+          : '';
+        
+        console.log('📅 Date installation brute:', response.data.config.installationDate);
+        console.log('📅 Date installation formatée:', installationDate);
+        
         setBoilerConfig({
           nominalPower: response.data.config.nominalPower || 15,
-          pelletsPerKWh: response.data.config.pelletsPerKWh || 0.2
+          pelletsPerKWh: response.data.config.pelletsPerKWh || 0.2,
+          installationDate: installationDate
         });
       }
     } catch (error) {
@@ -92,14 +101,26 @@ const ConfigurationCenter = ({ onBack }) => {
         axios.get(`${API_URL}/api/boiler/gmail/config`)
       ]);
       
+      console.log('📧 Réponse Gmail config:', gmailResp.data);
+      
+      const gmailConfig = gmailResp.data?.config || {};
+      
+      // S'assurer que senders n'est pas un tableau vide
+      let senders = gmailConfig.senders || [''];
+      if (Array.isArray(senders) && senders.length === 0) {
+        senders = [''];
+      }
+      
       setImportConfig({
-        senderAddresses: gmailResp.data?.senderAddresses || statsResp.data?.config?.senderAddresses || [''],
-        subjectKeywords: gmailResp.data?.subjectKeywords || statsResp.data?.config?.subjectKeywords || [''],
+        senders: senders,
+        subject: gmailConfig.subject || '',
         importIntervals: statsResp.data?.config?.importInterval || 5,
         cronSchedule: cronResp.data?.schedule || '0 6 * * *',
         cronEnabled: cronResp.data?.isActive || false,
         overwriteFiles: statsResp.data?.config?.overwriteFiles || false
       });
+      
+      console.log('📧 Config import chargée:', { senders, subject: gmailConfig.subject || '' });
     } catch (error) {
       console.error('Erreur chargement config import:', error);
     }
@@ -108,7 +129,7 @@ const ConfigurationCenter = ({ onBack }) => {
   const saveBoilerConfig = async () => {
     setLoading(true);
     try {
-      await axios.post(`${API_URL}/api/boiler/config`, boilerConfig);
+      await axios.put(`${API_URL}/api/boiler/config`, boilerConfig);
       setMessage('✅ Paramètres de la chaudière sauvegardés avec succès');
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
@@ -121,7 +142,22 @@ const ConfigurationCenter = ({ onBack }) => {
   const saveImportConfig = async () => {
     setLoading(true);
     try {
-      await axios.post(`${API_URL}/api/boiler/import/config`, importConfig);
+      console.log('💾 Sauvegarde config import:', importConfig);
+      console.log('💾 SENDERS DÉTAIL:', importConfig.senders, 'LENGTH:', importConfig.senders.length);
+      console.log('💾 PREMIER SENDER:', importConfig.senders[0], 'TYPE:', typeof importConfig.senders[0]);
+      
+      // Sauvegarder la configuration Gmail (senders et subject)
+      const response = await axios.post(`${API_URL}/api/boiler/gmail/config`, {
+        senders: importConfig.senders,
+        subject: importConfig.subject,
+        enabled: true
+      });
+      
+      console.log('✅ Réponse serveur:', response.data);
+      
+      // NE PAS appeler /api/boiler/import/config car il écrase les senders !
+      // TODO: Créer un endpoint séparé pour importInterval et overwriteFiles si nécessaire
+      
       setMessage('✅ Configuration d\'import sauvegardée avec succès');
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
@@ -147,7 +183,8 @@ const ConfigurationCenter = ({ onBack }) => {
   const resetBoilerConfig = () => {
     setBoilerConfig({
       nominalPower: 15,
-      pelletsPerKWh: 0.2
+      pelletsPerKWh: 0.2,
+      installationDate: ''
     });
   };
 
@@ -155,50 +192,28 @@ const ConfigurationCenter = ({ onBack }) => {
   const addSenderAddress = () => {
     setImportConfig({
       ...importConfig,
-      senderAddresses: [...importConfig.senderAddresses, '']
+      senders: [...importConfig.senders, '']
     });
   };
 
   const removeSenderAddress = (index) => {
-    const newAddresses = importConfig.senderAddresses.filter((_, i) => i !== index);
+    const newAddresses = importConfig.senders.filter((_, i) => i !== index);
     setImportConfig({
       ...importConfig,
-      senderAddresses: newAddresses.length > 0 ? newAddresses : ['']
+      senders: newAddresses.length > 0 ? newAddresses : ['']
     });
   };
 
   const updateSenderAddress = (index, value) => {
-    const newAddresses = [...importConfig.senderAddresses];
+    const newAddresses = [...importConfig.senders];
     newAddresses[index] = value;
     setImportConfig({
       ...importConfig,
-      senderAddresses: newAddresses
+      senders: newAddresses
     });
   };
 
-  const addSubjectKeyword = () => {
-    setImportConfig({
-      ...importConfig,
-      subjectKeywords: [...importConfig.subjectKeywords, '']
-    });
-  };
 
-  const removeSubjectKeyword = (index) => {
-    const newKeywords = importConfig.subjectKeywords.filter((_, i) => i !== index);
-    setImportConfig({
-      ...importConfig,
-      subjectKeywords: newKeywords.length > 0 ? newKeywords : ['']
-    });
-  };
-
-  const updateSubjectKeyword = (index, value) => {
-    const newKeywords = [...importConfig.subjectKeywords];
-    newKeywords[index] = value;
-    setImportConfig({
-      ...importConfig,
-      subjectKeywords: newKeywords
-    });
-  };
 
   const toggleCronJob = async () => {
     setLoading(true);
@@ -321,6 +336,22 @@ const ConfigurationCenter = ({ onBack }) => {
                   />
                   <small className="form-text text-muted">
                     Consommation de pellets par kWh produit
+                  </small>
+                </div>
+
+                <div className="form-group">
+                  <label>📅 Date d'Installation</label>
+                  <input
+                    type="date"
+                    value={boilerConfig.installationDate}
+                    onChange={(e) => setBoilerConfig({
+                      ...boilerConfig,
+                      installationDate: e.target.value
+                    })}
+                    className="form-control"
+                  />
+                  <small className="form-text text-muted">
+                    Date de mise en service de la chaudière
                   </small>
                 </div>
 
@@ -468,20 +499,20 @@ const ConfigurationCenter = ({ onBack }) => {
                     💡 Adresses email autorisées à envoyer des données de chaudière
                   </p>
                   <div className="senders-list">
-                    {importConfig.senderAddresses.map((address, index) => (
+                    {importConfig.senders.map((address, index) => (
                       <div key={index} className="sender-input-group">
                         <input
                           type="email"
                           value={address}
                           onChange={(e) => updateSenderAddress(index, e.target.value)}
                           className="sender-input"
-                          placeholder="exemple@okofen.fr"
+                          placeholder="no-reply@my.oekofen.info"
                         />
                         <button 
                           type="button"
                           onClick={() => removeSenderAddress(index)}
                           className="btn-remove-sender"
-                          disabled={importConfig.senderAddresses.length <= 1}
+                          disabled={importConfig.senders.length <= 1}
                         >
                           ✕
                         </button>
@@ -497,40 +528,23 @@ const ConfigurationCenter = ({ onBack }) => {
                   </button>
                 </div>
 
-                {/* Mots-clés dans le sujet */}
+                {/* Mot-clé dans le sujet */}
                 <div className="boiler-subsection">
-                  <h4>🔍 Mots-clés dans le sujet</h4>
+                  <h4>🔍 Mot-clé dans le sujet</h4>
                   <p className="config-help">
-                    💡 Mots-clés à rechercher dans le sujet des emails
+                    💡 Mot-clé à rechercher dans le sujet des emails (ex: X128812)
                   </p>
-                  <div className="senders-list">
-                    {importConfig.subjectKeywords.map((keyword, index) => (
-                      <div key={index} className="sender-input-group">
-                        <input
-                          type="text"
-                          value={keyword}
-                          onChange={(e) => updateSubjectKeyword(index, e.target.value)}
-                          className="sender-input"
-                          placeholder="data, chaudiere, pellets..."
-                        />
-                        <button 
-                          type="button"
-                          onClick={() => removeSubjectKeyword(index)}
-                          className="btn-remove-sender"
-                          disabled={importConfig.subjectKeywords.length <= 1}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  <button 
-                    type="button"
-                    onClick={addSubjectKeyword}
-                    className="btn-add-sender"
-                  >
-                    ➕ Ajouter un mot-clé
-                  </button>
+                  <input
+                    type="text"
+                    value={importConfig.subject}
+                    onChange={(e) => setImportConfig({
+                      ...importConfig,
+                      subject: e.target.value
+                    })}
+                    className="sender-input"
+                    placeholder="X128812"
+                    style={{ width: '100%', marginBottom: '1rem' }}
+                  />
                 </div>
 
                 {/* Intervalles d'import */}

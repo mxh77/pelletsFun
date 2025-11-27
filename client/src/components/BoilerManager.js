@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCog, faHistory, faChevronDown, faChevronRight, faEye, faDownload, faFile } from '@fortawesome/free-solid-svg-icons';
 import ConfigurationCenter from './ConfigurationCenter';
 import TemperatureChart from './TemperatureChart';
+import RecoverMissingFilesDialog from './RecoverMissingFilesDialog';
 import './BoilerManager.css';
 
 const BoilerManager = () => {
@@ -19,6 +20,9 @@ const BoilerManager = () => {
   
   // État pour le graphique de température
   const [showTemperatureChart, setShowTemperatureChart] = useState(false);
+  
+  // État pour le dialog de récupération
+  const [showRecoverDialog, setShowRecoverDialog] = useState(false);
   const [selectedChartFile, setSelectedChartFile] = useState(null);
 
   const API_URL = process.env.REACT_APP_API_URL || '';
@@ -234,6 +238,13 @@ const BoilerManager = () => {
             <FontAwesomeIcon icon={faHistory} className="section-icon" />
             <h3>📊 Historique des Imports</h3>
           </div>
+          <button 
+            className="btn-recover-files"
+            onClick={() => setShowRecoverDialog(true)}
+            title="Récupérer des fichiers manquants depuis Gmail"
+          >
+            🔄 Récupérer fichiers
+          </button>
           <p className="section-description">
             Consultez l'historique complet des fichiers importés depuis Gmail et le système
           </p>
@@ -447,6 +458,15 @@ const BoilerManager = () => {
           onNavigate={navigateToFile}
         />
       )}
+
+      {/* Dialog de récupération des fichiers manquants */}
+      <RecoverMissingFilesDialog 
+        isOpen={showRecoverDialog}
+        onClose={() => setShowRecoverDialog(false)}
+        onSuccess={() => {
+          loadImportHistory();
+        }}
+      />
 
     </div>
   );

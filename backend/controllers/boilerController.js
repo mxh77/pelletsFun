@@ -582,7 +582,8 @@ exports.getBoilerStats = async (req, res) => {
       config: {
         nominalPower: config.nominalPower,
         pelletsPerKWh: config.pelletsPerKWh,
-        importInterval: config.importInterval
+        importInterval: config.importInterval,
+        installationDate: config.installationDate
       }
     });
 
@@ -607,6 +608,7 @@ exports.getBoilerConfig = async (req, res) => {
         nominalPower: config.nominalPower,
         pelletsPerKWh: config.pelletsPerKWh,
         importInterval: config.importInterval,
+        installationDate: config.installationDate,
         updatedAt: config.updatedAt
       }
     });
@@ -623,7 +625,7 @@ exports.getBoilerConfig = async (req, res) => {
 // Mettre à jour la configuration de la chaudière
 exports.updateBoilerConfig = async (req, res) => {
   try {
-    const { nominalPower, pelletsPerKWh, importInterval } = req.body;
+    const { nominalPower, pelletsPerKWh, importInterval, installationDate } = req.body;
     
     // Récupérer ou créer la configuration
     let config = await BoilerConfig.findOne({ configType: 'main' });
@@ -643,6 +645,10 @@ exports.updateBoilerConfig = async (req, res) => {
       config.importInterval = parseInt(importInterval);
       console.log(`📊 Pattern d'import mis à jour: toutes les ${importInterval} minute(s)`);
     }
+    if (installationDate !== undefined) {
+      config.installationDate = installationDate ? new Date(installationDate) : null;
+      console.log(`📅 Date d'installation mise à jour: ${installationDate}`);
+    }
 
     // Sauvegarder en base
     await config.save();
@@ -653,6 +659,7 @@ exports.updateBoilerConfig = async (req, res) => {
         nominalPower: config.nominalPower,
         pelletsPerKWh: config.pelletsPerKWh,
         importInterval: config.importInterval,
+        installationDate: config.installationDate,
         updatedAt: config.updatedAt
       }
     });
@@ -746,24 +753,22 @@ exports.getGmailConfig = async (req, res) => {
 
 exports.updateGmailConfig = async (req, res) => {
   try {
-    const { enabled, sender, subject, senders } = req.body;
+    const { enabled, subject, senders } = req.body;
     
-    // Gérer la migration de l'ancien format vers le nouveau
+    console.log('📧 Requête reçue pour mise à jour Gmail:', req.body);
+    
+    // S'assurer que senders est un tableau
     let sendersArray = senders;
-    if (!sendersArray && sender) {
-      // Migration de l'ancien format
-      sendersArray = [sender];
-    }
-    if (!sendersArray || sendersArray.length === 0) {
+    if (!sendersArray || !Array.isArray(sendersArray)) {
       sendersArray = [''];
     }
     
-    console.log('📧 Données reçues pour mise à jour Gmail:', { enabled, sender, senders: sendersArray, subject });
+    console.log('📧 Données traitées pour mise à jour Gmail:', { enabled, senders: sendersArray, subject });
     
     const updatedConfig = await autoImportService.updateGmailConfig({
       enabled: enabled !== undefined ? enabled : autoImportService.config.gmail?.enabled,
       senders: sendersArray,
-      subject: subject || autoImportService.config.gmail?.subject
+      subject: subject !== undefined ? subject : (autoImportService.config.gmail?.subject || '')
     });
     
     console.log('✅ Configuration Gmail sauvegardée:', updatedConfig.toObject ? updatedConfig.toObject() : updatedConfig);
@@ -2106,6 +2111,106 @@ exports.getTemperatureData = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Erreur lors de la récupération des données de température',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Récupère et importe les fichiers manquants depuis Gmail
+ */
+exports.recoverMissingFiles = async (req, res) => {
+  const { spawn } = require('child_process');
+  
+  try {
+    const { startDate, endDate, dryRun, forceDownload, forceImport, skipGmail, skipImport } = req.body;
+    
+    // Validation des dates
+    if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date de début invalide (format attendu: YYYY-MM-DD)'
+      });
+    }
+    
+    if (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Date de fin invalide (format attendu: YYYY-MM-DD)'
+      });
+    }
+    
+    console.log('🔄 Lancement récupération fichiers manquants:', { startDate, endDate, dryRun, forceDownload, forceImport, skipGmail, skipImport });
+    
+    // Construire les arguments du script
+    const scriptPath = path.join(__dirname, '..', 'scripts', 'recover-and-import-missing-files.js');
+    const args = [scriptPath];
+    
+    // Convertir dates YYYY-MM-DD en YYYYMMDD
+    args.push(startDate.replace(/-/g, ''));
+    if (endDate) {
+      args.push(endDate.replace(/-/g, ''));
+    }
+    
+    // Ajouter les flags
+    if (dryRun) args.push('--dry-run');
+    if (forceDownload) args.push('--force-download');
+    if (forceImport) args.push('--force-import');
+    if (skipGmail) args.push('--skip-gmail');
+    if (skipImport) args.push('--skip-import');
+    
+    // Lancer le script
+    const scriptProcess = spawn('node', args, {
+      cwd: path.join(__dirname, '..', '..'),
+      env: process.env
+    });
+    
+    let output = '';
+    let errorOutput = '';
+    
+    scriptProcess.stdout.on('data', (data) => {
+      output += data.toString();
+      console.log(data.toString());
+    });
+    
+    scriptProcess.stderr.on('data', (data) => {
+      errorOutput += data.toString();
+      console.error(data.toString());
+    });
+    
+    scriptProcess.on('close', (code) => {
+      if (code === 0) {
+        res.json({
+          success: true,
+          message: 'Récupération terminée avec succès',
+          output: output,
+          logs: output.split('\n').filter(line => line.trim())
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: `Le script s'est terminé avec le code ${code}`,
+          output: output,
+          error: errorOutput,
+          logs: output.split('\n').filter(line => line.trim())
+        });
+      }
+    });
+    
+    scriptProcess.on('error', (error) => {
+      console.error('❌ Erreur lancement script:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erreur lors du lancement du script',
+        error: error.message
+      });
+    });
+    
+  } catch (error) {
+    console.error('❌ Erreur récupération fichiers manquants:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la récupération des fichiers manquants',
       error: error.message
     });
   }

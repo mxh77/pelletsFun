@@ -133,10 +133,10 @@ class AutoImportService {
       
       // Ajouter les expéditeurs s'ils sont spécifiés
       if (options.senders && Array.isArray(options.senders) && options.senders.length > 0) {
-        searchParams.sender = options.senders;
+        searchParams.senders = options.senders;
         console.log('📧 Expéditeurs spécifiés:', options.senders);
       } else if (this.config.gmail.senders && this.config.gmail.senders.length > 0 && this.config.gmail.senders[0] !== '') {
-        searchParams.sender = this.config.gmail.senders;
+        searchParams.senders = this.config.gmail.senders;
         console.log('📧 Expéditrices par défaut:', this.config.gmail.senders);
       }
       

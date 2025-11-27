@@ -18,6 +18,11 @@ const BoilerConfigSchema = new mongoose.Schema({
     max: 1.0
   },
   
+  installationDate: {
+    type: Date,
+    default: null
+  },
+  
   importInterval: {
     type: Number,
     required: true,

@@ -76,12 +76,37 @@
   cursor: pointer;
   transition: all 0.3s ease;
   user-select: none;
+  position: relative;
 }
 
 .section-header:hover {
   background: linear-gradient(135deg, #357abd 0%, #2968a3 100%);
   transform: translateY(-1px);
   box-shadow: 0 6px 20px rgba(74, 144, 226, 0.3);
+}
+
+.btn-recover-files {
+  position: absolute;
+  top: 1.5rem;
+  right: 2rem;
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  z-index: 10;
+}
+
+.btn-recover-files:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .section-title {
@@ -702,7 +727,7 @@
 
 .summary-cards {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
   gap: 1rem;
   margin-bottom: 1.5rem;
 }

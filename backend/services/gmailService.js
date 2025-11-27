@@ -279,7 +279,7 @@ class GmailService {
       const {
         dateFrom = null,
         dateTo = null,
-        sender = null,
+        senders = null,
         subject = 'okofen'
       } = options;
 
@@ -292,16 +292,16 @@ class GmailService {
       }
       
       // Support pour plusieurs expéditeurs
-      if (sender) {
-        if (Array.isArray(sender)) {
+      if (senders) {
+        if (Array.isArray(senders)) {
           // Multiple senders - utiliser OR logic
-          if (sender.length > 0) {
-            const senderQuery = sender.map(s => `from:${s.trim()}`).join(' OR ');
+          if (senders.length > 0) {
+            const senderQuery = senders.map(s => `from:${s.trim()}`).join(' OR ');
             query += ` (${senderQuery})`;
           }
         } else {
           // Single sender
-          query += ` from:${sender}`;
+          query += ` from:${senders}`;
         }
       }
 
@@ -638,9 +638,11 @@ class GmailService {
                   const shouldInclude = this.isFileInDateRange(fileDate, options.dateFrom, options.dateTo);
                   if (!shouldInclude) {
                     console.log(`📅 Fichier ${attachment.filename} (${fileDate.toISOString().split('T')[0]}) hors période demandée, ignoré`);
+                    console.log(`   📊 Debug: dateFrom=${options.dateFrom}, dateTo=${options.dateTo}`);
+                    console.log(`   📊 Debug: fileDate UTC=${fileDate.toISOString()}`);
                     continue;
                   }
-                  console.log(`📅 Fichier ${attachment.filename} (${fileDate.toISOString().split('T')[0]}) dans la période, traitement`);
+                  console.log(`✅ Fichier ${attachment.filename} (${fileDate.toISOString().split('T')[0]}) dans la période, téléchargement`);
                 } else {
                   console.log(`⚠️ Impossible d'extraire la date de ${attachment.filename}, traitement par défaut`);
                 }
@@ -890,11 +892,12 @@ class GmailService {
         }
 
         if (dateStr && dateStr.length === 8) {
-          const year = dateStr.substring(0, 4);
-          const month = dateStr.substring(4, 6);
-          const day = dateStr.substring(6, 8);
+          const year = parseInt(dateStr.substring(0, 4));
+          const month = parseInt(dateStr.substring(4, 6)) - 1; // Mois 0-indexé
+          const day = parseInt(dateStr.substring(6, 8));
           
-          const date = new Date(`${year}-${month}-${day}`);
+          // Utiliser Date.UTC pour éviter les problèmes de fuseau horaire
+          const date = new Date(Date.UTC(year, month, day));
           
           // Vérifier que la date est valide
           if (!isNaN(date.getTime())) {
@@ -919,12 +922,12 @@ class GmailService {
       return true; // Si on ne peut pas déterminer la date, on inclut le fichier
     }
 
-    // Normaliser les dates pour comparer seulement les jours (pas les heures)
-    const fileDateOnly = new Date(fileDate.getFullYear(), fileDate.getMonth(), fileDate.getDate());
+    // Normaliser les dates en UTC pour comparer seulement les jours (pas les heures)
+    const fileDateOnly = Date.UTC(fileDate.getUTCFullYear(), fileDate.getUTCMonth(), fileDate.getUTCDate());
     
     if (dateFrom) {
       const fromDate = new Date(dateFrom);
-      const fromDateOnly = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
+      const fromDateOnly = Date.UTC(fromDate.getUTCFullYear(), fromDate.getUTCMonth(), fromDate.getUTCDate());
       if (fileDateOnly < fromDateOnly) {
         return false;
       }
@@ -932,7 +935,7 @@ class GmailService {
 
     if (dateTo) {
       const toDate = new Date(dateTo);
-      const toDateOnly = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate());
+      const toDateOnly = Date.UTC(toDate.getUTCFullYear(), toDate.getUTCMonth(), toDate.getUTCDate());
       if (fileDateOnly > toDateOnly) {
         return false;
       }
