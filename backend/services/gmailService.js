@@ -77,6 +77,21 @@ class GmailService {
           };
         }
         
+        // ⚠️ ALERTE : Vérifier si le refresh_token a une expiration (mode Testing)
+        if (this.token.refresh_token_expires_in) {
+          const expiresInDays = Math.floor(this.token.refresh_token_expires_in / 86400);
+          console.log(`⚠️ WARNING: Refresh token expire dans ${expiresInDays} jours !`);
+          console.log(`📋 Action requise: Publier l'app en mode Production sur Google Cloud`);
+          console.log(`📖 Guide: https://console.cloud.google.com/apis/credentials/consent`);
+          
+          // Si expire dans moins de 2 jours, alerte critique
+          if (expiresInDays < 2) {
+            console.log(`🚨 CRITIQUE: Refresh token expire bientôt ! Réauthentification recommandée.`);
+          }
+        } else {
+          console.log('✅ Refresh token permanent (mode Production activé)');
+        }
+        
         this.auth.setCredentials(this.token);
       } catch (error) {
         console.log('🔐 Token Gmail non trouvé, autorisation requise');
@@ -177,7 +192,7 @@ class GmailService {
     return this.auth.generateAuthUrl({
       access_type: 'offline', // Nécessaire pour obtenir un refresh_token
       scope: SCOPES,
-      prompt: 'consent', // Force la demande de consentement pour obtenir le refresh_token
+      prompt: 'select_account', // Permet sélection de compte sans révoquer le refresh_token existant
       redirect_uri: redirectUri // Utiliser la bonne URL selon l'environnement
     });
   }
