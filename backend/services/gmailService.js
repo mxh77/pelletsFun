@@ -192,7 +192,7 @@ class GmailService {
     return this.auth.generateAuthUrl({
       access_type: 'offline', // Nécessaire pour obtenir un refresh_token
       scope: SCOPES,
-      prompt: 'select_account', // Permet sélection de compte sans révoquer le refresh_token existant
+      prompt: 'consent', // Force le consentement pour obtenir un nouveau refresh_token permanent
       redirect_uri: redirectUri // Utiliser la bonne URL selon l'environnement
     });
   }
