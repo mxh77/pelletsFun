@@ -15,6 +15,10 @@ backend/config/gmail-token.json
 backend/config/*.json
 !backend/config/*.example.json
 
+# Android Keystore - NE JAMAIS COMMITER
+*.keystore
+*.jks
+
 # Scripts de production avec secrets
 setup-gmail-production.sh
 
