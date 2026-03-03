@@ -1,0 +1,73 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - copilot/**
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/build-android.yml'
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: 🔄 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 📁 Install mobile dependencies
+        working-directory: mobile
+        run: npm install
+
+      - name: 🔧 Expo Prebuild (génération projet Android natif)
+        working-directory: mobile
+        run: npx expo prebuild --platform android --non-interactive
+        env:
+          EXPO_NO_GIT_STATUS: 1
+
+      - name: 🔑 Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 🏗️ Build APK (debug)
+        working-directory: mobile/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: 📤 Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pelletsfun-debug-${{ github.ref_name }}-${{ github.run_number }}
+          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+      - name: ✅ Build summary
+        run: |
+          echo "## 🎉 APK généré avec succès !" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Paramètre | Valeur |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | #${{ github.run_number }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch | ${{ github.ref_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📥 L'APK est disponible dans les **Artifacts** de cette exécution." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          APK_SIZE=$(du -sh mobile/android/app/build/outputs/apk/debug/app-debug.apk 2>/dev/null | cut -f1 || echo "N/A")
+          echo "📦 Taille de l'APK : **${APK_SIZE}**" >> $GITHUB_STEP_SUMMARY
