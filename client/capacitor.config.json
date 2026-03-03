@@ -1,0 +1,11 @@
+{
+  "appId": "fr.harmonixe.pelletsfun",
+  "appName": "PelletsFun",
+  "webDir": "build",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "backgroundColor": "#ffffff"
+    }
+  }
+}

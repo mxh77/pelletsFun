@@ -1,6 +1,10 @@
 node_modules
 .vercel
 
+# Répertoires générés par Capacitor (Android/iOS)
+client/android
+client/ios
+
 # Fichiers .env avec credentials - NE JAMAIS COMMITER
 backend/.env
 client/.env
