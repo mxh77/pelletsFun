@@ -1,0 +1,19 @@
+# Dépendances
+node_modules/
+
+# Projets natifs générés par expo prebuild (reconstruits par CI)
+android/
+ios/
+
+# Expo
+.expo/
+dist/
+
+# Logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Variables d'environnement locales
+.env.local
+.env*.local
