@@ -1,0 +1,66 @@
+<resources>
+    <string name="app_name">Pellets Fun</string>
+    <string name="app_tagline">Gestion de votre chaudière à pellets</string>
+
+    <!-- Navigation bas -->
+    <string name="nav_home">Accueil</string>
+    <string name="nav_stock">Stock</string>
+    <string name="nav_boiler">Chaudière</string>
+    <string name="nav_history">Historique</string>
+
+    <!-- Tableau de bord -->
+    <string name="dashboard_title">Tableau de Bord</string>
+    <string name="dashboard_subtitle">Vue d\'ensemble de votre installation</string>
+
+    <!-- Cartes de statistiques -->
+    <string name="card_stock_label">Stock Actuel</string>
+    <string name="card_stock_unit">sacs</string>
+    <string name="card_delivery_label">Total Livraisons</string>
+    <string name="card_delivery_unit">sacs livrés</string>
+    <string name="card_consumption_label">Consommation</string>
+    <string name="card_consumption_unit">sacs consommés</string>
+    <string name="card_price_label">Dépense Totale</string>
+    <string name="card_price_unit">avg/sac</string>
+
+    <!-- Statuts du stock -->
+    <string name="status_excellent">Excellent</string>
+    <string name="status_good">Bon</string>
+    <string name="status_low">Faible</string>
+    <string name="status_critical">Critique</string>
+
+    <!-- Section activités -->
+    <string name="section_last_activities">Dernières Activités</string>
+    <string name="label_last_delivery">Dernière livraison</string>
+    <string name="label_last_recharge">Dernier chargement</string>
+    <string name="label_monthly_avg">Consommation moy.</string>
+    <string name="value_none">Aucune</string>
+    <string name="value_bags_per_month">sacs/mois</string>
+
+    <!-- Section consommation mensuelle -->
+    <string name="section_monthly_consumption">Consommation Mensuelle</string>
+    <string name="no_data">Aucune donnée disponible</string>
+
+    <!-- Actions rapides -->
+    <string name="section_quick_actions">Actions Rapides</string>
+    <string name="action_add_delivery">Ajouter une livraison</string>
+    <string name="action_add_recharge">Enregistrer un chargement</string>
+    <string name="action_view_boiler">Données chaudière</string>
+    <string name="action_manage_seasons">Gérer les saisons</string>
+
+    <!-- Loading et erreurs -->
+    <string name="loading">Chargement…</string>
+    <string name="error_loading">Erreur lors du chargement des données</string>
+    <string name="retry">Réessayer</string>
+
+    <!-- Unités -->
+    <string name="unit_euro">€</string>
+    <string name="unit_bags">sacs</string>
+    <string name="unit_celsius">°C</string>
+    <string name="unit_kg">kg</string>
+
+    <!-- Configuration API -->
+    <string name="api_base_url">https://pelletsfun.harmonixe.fr</string>
+
+    <!-- Footer -->
+    <string name="footer_copyright">© 2025 Pellets Fun — Harmonixe</string>
+</resources>

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    item_month_bar.xml
+    Élément de liste pour la consommation mensuelle.
+    Affiche : label du mois | barre de progression | valeur
+-->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:layout_marginBottom="10dp">
+
+    <!-- Label du mois -->
+    <TextView
+        android:id="@+id/tv_month_label"
+        android:layout_width="60dp"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:textColor="@color/text_secondary"
+        tools:text="Jan. 25" />
+
+    <!-- Conteneur de la barre -->
+    <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="12dp"
+        android:layout_weight="1"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp">
+
+        <!-- Fond de la barre -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@drawable/progress_bar_background" />
+
+        <!-- Remplissage de la barre -->
+        <View
+            android:id="@+id/bar_fill"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="start|center_vertical"
+            android:background="@drawable/progress_bar_fill"
+            tools:layout_width="70dp" />
+
+    </FrameLayout>
+
+    <!-- Valeur en sacs -->
+    <TextView
+        android:id="@+id/tv_month_value"
+        android:layout_width="40dp"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:textColor="@color/text_primary"
+        android:textStyle="bold"
+        android:gravity="end"
+        tools:text="42" />
+
+</LinearLayout>
