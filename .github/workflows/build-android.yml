@@ -55,7 +55,7 @@ jobs:
           echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
           APK_SIZE=$(du -sh "$APK_PATH" | cut -f1)
           echo "apk_size=$APK_SIZE" >> $GITHUB_OUTPUT
-          VERSION=$(grep -oP 'versionName "\K[^"]+' android/app/build.gradle)
+          VERSION=$(sed -n 's/.*versionName "\([^"]*\)".*/\1/p' android/app/build.gradle | tr -d '[:space:]')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: 🏷️ Create tag name
