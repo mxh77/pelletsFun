@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Couleurs principales -->
+    <color name="primary">#FF6B35</color>
+    <color name="primary_dark">#E55A2B</color>
+    <color name="primary_light">#FF8C5A</color>
+    <color name="secondary">#667EEA</color>
+    <color name="secondary_dark">#5A6FD6</color>
+
+    <!-- Couleurs de fond -->
+    <color name="background">#F8F9FA</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_variant">#F0F0F5</color>
+
+    <!-- Couleurs des cartes de statistiques -->
+    <color name="card_stock_start">#FF6B35</color>
+    <color name="card_stock_end">#FF8C5A</color>
+    <color name="card_delivery_start">#667EEA</color>
+    <color name="card_delivery_end">#764BA2</color>
+    <color name="card_consumption_start">#F093FB</color>
+    <color name="card_consumption_end">#F5576C</color>
+    <color name="card_price_start">#4FACFE</color>
+    <color name="card_price_end">#00F2FE</color>
+
+    <!-- Couleurs de statut du stock -->
+    <color name="status_excellent">#28A745</color>
+    <color name="status_good">#17A2B8</color>
+    <color name="status_low">#FFC107</color>
+    <color name="status_critical">#DC3545</color>
+
+    <!-- Textes -->
+    <color name="text_primary">#212529</color>
+    <color name="text_secondary">#6C757D</color>
+    <color name="text_on_primary">#FFFFFF</color>
+    <color name="text_on_card">#FFFFFF</color>
+
+    <!-- Navigation -->
+    <color name="nav_background">#FFFFFF</color>
+    <color name="nav_selected">#FF6B35</color>
+    <color name="nav_unselected">#9E9E9E</color>
+
+    <!-- Barres de progression -->
+    <color name="bar_fill">#FF6B35</color>
+    <color name="bar_background">#E9ECEF</color>
+
+    <!-- Divers -->
+    <color name="divider">#E9ECEF</color>
+    <color name="shadow">#1A000000</color>
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+</resources>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    nav_graph.xml
+    Graphe de navigation de l'application PelletsFun.
+    Définit les destinations et les transitions entre fragments.
+-->
+<navigation
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/nav_home">
+
+    <!-- Page d'accueil / Tableau de bord -->
+    <fragment
+        android:id="@+id/nav_home"
+        android:name="fr.harmonixe.pelletsfun.ui.home.HomeFragment"
+        android:label="@string/nav_home"
+        tools:layout="@layout/fragment_home" />
+
+    <!-- Gestion du stock (livraisons + recharges) -->
+    <fragment
+        android:id="@+id/nav_stock"
+        android:name="fr.harmonixe.pelletsfun.ui.stock.StockFragment"
+        android:label="@string/nav_stock" />
+
+    <!-- Données chaudière -->
+    <fragment
+        android:id="@+id/nav_boiler"
+        android:name="fr.harmonixe.pelletsfun.ui.boiler.BoilerFragment"
+        android:label="@string/nav_boiler" />
+
+    <!-- Historique -->
+    <fragment
+        android:id="@+id/nav_history"
+        android:name="fr.harmonixe.pelletsfun.ui.history.HistoryFragment"
+        android:label="@string/nav_history" />
+
+</navigation>

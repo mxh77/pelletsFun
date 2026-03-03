@@ -1,0 +1,86 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Thème de base de l'application -->
+    <style name="Theme.PelletsFun" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryDark">@color/primary_dark</item>
+        <item name="colorPrimaryVariant">@color/primary_light</item>
+        <item name="colorOnPrimary">@color/text_on_primary</item>
+        <item name="colorSecondary">@color/secondary</item>
+        <item name="colorOnSecondary">@color/text_on_primary</item>
+        <item name="android:colorBackground">@color/background</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/text_primary</item>
+        <item name="android:statusBarColor">@color/primary_dark</item>
+        <item name="android:navigationBarColor">@color/nav_background</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item>
+    </style>
+
+    <!-- Thème du Splash Screen -->
+    <style name="Theme.PelletsFun.SplashScreen" parent="Theme.PelletsFun">
+        <item name="android:windowBackground">@drawable/splash_background</item>
+    </style>
+
+    <!-- Style de la Toolbar -->
+    <style name="Widget.PelletsFun.Toolbar" parent="Widget.Material3.Toolbar">
+        <item name="android:background">@color/primary</item>
+        <item name="titleTextColor">@color/white</item>
+        <item name="subtitleTextColor">@color/white</item>
+        <item name="android:elevation">4dp</item>
+    </style>
+
+    <!-- Style des cartes de statistiques -->
+    <style name="Widget.PelletsFun.StatCard" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardElevation">6dp</item>
+        <item name="cardCornerRadius">16dp</item>
+        <item name="android:layout_margin">8dp</item>
+    </style>
+
+    <!-- Style des cartes normales -->
+    <style name="Widget.PelletsFun.Card" parent="Widget.Material3.CardView.Elevated">
+        <item name="cardElevation">4dp</item>
+        <item name="cardCornerRadius">16dp</item>
+        <item name="android:layout_margin">8dp</item>
+    </style>
+
+    <!-- Style des boutons d'action rapide -->
+    <style name="Widget.PelletsFun.ActionButton" parent="Widget.Material3.Button.ElevatedButton">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">56dp</item>
+        <item name="android:layout_marginBottom">8dp</item>
+        <item name="cornerRadius">12dp</item>
+    </style>
+
+    <!-- Style du texte de titre de carte -->
+    <style name="TextAppearance.PelletsFun.CardTitle">
+        <item name="android:textColor">@color/text_on_card</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.1</item>
+        <item name="android:alpha">0.85</item>
+    </style>
+
+    <!-- Style du texte de valeur de carte -->
+    <style name="TextAppearance.PelletsFun.CardValue">
+        <item name="android:textColor">@color/text_on_card</item>
+        <item name="android:textSize">36sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <!-- Style du texte de sous-titre de carte -->
+    <style name="TextAppearance.PelletsFun.CardSubtitle">
+        <item name="android:textColor">@color/text_on_card</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:alpha">0.75</item>
+    </style>
+
+    <!-- Style des badges de statut -->
+    <style name="Widget.PelletsFun.StatusBadge">
+        <item name="android:paddingStart">10dp</item>
+        <item name="android:paddingEnd">10dp</item>
+        <item name="android:paddingTop">4dp</item>
+        <item name="android:paddingBottom">4dp</item>
+        <item name="android:textSize">10sp</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+</resources>
