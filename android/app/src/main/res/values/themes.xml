@@ -50,6 +50,9 @@
         <item name="cornerRadius">12dp</item>
     </style>
 
+    <!-- Style de base TextAppearance -->
+    <style name="TextAppearance.PelletsFun" parent="TextAppearance.Material3.BodyMedium" />
+
     <!-- Style du texte de titre de carte -->
     <style name="TextAppearance.PelletsFun.CardTitle">
         <item name="android:textColor">@color/text_on_card</item>
@@ -72,6 +75,9 @@
         <item name="android:textSize">11sp</item>
         <item name="android:alpha">0.75</item>
     </style>
+
+    <!-- Style de base Widget -->
+    <style name="Widget.PelletsFun" parent="android:Widget" />
 
     <!-- Style des badges de statut -->
     <style name="Widget.PelletsFun.StatusBadge">
