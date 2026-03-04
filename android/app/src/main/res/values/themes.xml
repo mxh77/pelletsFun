@@ -50,6 +50,12 @@
         <item name="cornerRadius">12dp</item>
     </style>
 
+    <!-- Style de texte de base -->
+    <style name="TextAppearance.PelletsFun" parent="TextAppearance.Material3.BodyMedium" />
+
+    <!-- Style widget de base -->
+    <style name="Widget.PelletsFun" parent="android:Widget" />
+
     <!-- Style du texte de titre de carte -->
     <style name="TextAppearance.PelletsFun.CardTitle">
         <item name="android:textColor">@color/text_on_card</item>
