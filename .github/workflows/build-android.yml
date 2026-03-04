@@ -5,15 +5,11 @@ on:
     branches:
       - main
       - master
-      - copilot/**
-    paths:
-      - 'mobile/**'
-      - '.github/workflows/build-android.yml'
   workflow_dispatch:
 
 jobs:
-  build-android:
-    name: Build Android APK
+  build-debug:
+    name: Build Debug APK (Expo)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -63,7 +59,7 @@ jobs:
 
       - name: ✅ Build summary
         run: |
-          echo "## 🎉 APK généré avec succès !" >> $GITHUB_STEP_SUMMARY
+          echo "## 🎉 APK Debug généré avec succès !" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Paramètre | Valeur |" >> $GITHUB_STEP_SUMMARY
           echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
@@ -75,3 +71,114 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           APK_SIZE=$(du -sh mobile/android/app/build/outputs/apk/debug/app-debug.apk 2>/dev/null | cut -f1 || echo "N/A")
           echo "📦 Taille de l'APK : **${APK_SIZE}**" >> $GITHUB_STEP_SUMMARY
+
+  build-release:
+    name: Build Release APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 🔄 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: 🔑 Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 🔐 Decode Keystore
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            mkdir -p android/app
+            echo "$KEYSTORE_BASE64" | base64 -d > android/app/release-keystore.jks
+            echo "KEYSTORE_FILE=${{ github.workspace }}/android/app/release-keystore.jks" >> $GITHUB_ENV
+            echo "✅ Keystore décodé avec succès"
+          else
+            echo "ℹ️ Pas de keystore configuré, utilisation de la signature debug"
+          fi
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+
+      - name: 🏗️ Build Release APK
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon
+        env:
+          KEYSTORE_FILE: ${{ env.KEYSTORE_FILE }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: 📏 Get APK info
+        id: apk_info
+        run: |
+          APK_PATH=$(find android/app/build/outputs/apk/release -name "*.apk" | head -1)
+          if [ -z "$APK_PATH" ]; then
+            echo "❌ Aucun fichier APK trouvé dans android/app/build/outputs/apk/release"
+            exit 1
+          fi
+          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+          APK_SIZE=$(du -sh "$APK_PATH" | cut -f1)
+          echo "apk_size=$APK_SIZE" >> $GITHUB_OUTPUT
+          VERSION=$(sed -n 's/.*versionName "\([^"]*\)".*/\1/p' android/app/build.gradle | tr -d '[:space:]')
+          if [ -z "$VERSION" ]; then
+            VERSION="1.0.0"
+            echo "⚠️ Version non trouvée dans build.gradle, utilisation de la valeur par défaut: $VERSION"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: 🏷️ Create tag name
+        id: tag
+        run: |
+          VERSION=${{ steps.apk_info.outputs.version }}
+          TAG="v${VERSION}-build.${{ github.run_number }}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: 📤 Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PelletsFun-release-${{ steps.tag.outputs.tag }}
+          path: ${{ steps.apk_info.outputs.apk_path }}
+          retention-days: 90
+
+      - name: 🚀 Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: PelletsFun ${{ steps.tag.outputs.tag }}
+          body: |
+            ## 📱 PelletsFun - Release APK
+
+            | Paramètre | Valeur |
+            |-----------|--------|
+            | Version | ${{ steps.apk_info.outputs.version }} |
+            | Build | #${{ github.run_number }} |
+            | Commit | ${{ github.sha }} |
+            | Taille APK | ${{ steps.apk_info.outputs.apk_size }} |
+
+            ### 📥 Installation
+            1. Télécharger le fichier APK ci-dessous
+            2. Transférer sur votre appareil Android
+            3. Activer « Sources inconnues » dans les paramètres
+            4. Ouvrir et installer l'APK
+          files: ${{ steps.apk_info.outputs.apk_path }}
+          draft: false
+          prerelease: false
+
+      - name: ✅ Build summary
+        run: |
+          echo "## 🎉 APK Release généré avec succès !" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Paramètre | Valeur |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Version | ${{ steps.apk_info.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tag | ${{ steps.tag.outputs.tag }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | #${{ github.run_number }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Taille APK | ${{ steps.apk_info.outputs.apk_size }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📥 L'APK est disponible dans les **Artifacts** et dans la **Release GitHub**." >> $GITHUB_STEP_SUMMARY
